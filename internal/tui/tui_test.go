@@ -3,6 +3,7 @@ package tui
 import (
 	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -146,5 +147,35 @@ func TestHeaderFitsWidth(t *testing.T) {
 	}
 	if h := header(40); strings.Contains(h, "███") || !strings.Contains(h, "iesedoble-ai") {
 		t.Errorf("narrow header:\n%s", h)
+	}
+}
+
+func TestMenuView(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	saved := installer.Version
+	defer func() { installer.Version = saved }()
+	installer.Version = "0.4.2"
+
+	m := New()
+	view := m.View()
+	for _, want := range []string{"github.com/iesedobleac/iesedoble-ai", "Nothing installed yet", "Menu", "› Install or update", "- Sync"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("menu missing %q:\n%s", want, view)
+		}
+	}
+
+	m.status = &installer.InstallStatus{Targets: []string{"opencode", "claude"}, Installed: time.Now().Add(-50 * time.Hour), Version: "0.4.1"}
+	next, _ := m.Update(latestMsg("0.4.3"))
+	view = next.(Model).View()
+	for _, want := range []string{"✓ OpenCode · Claude Code", "installed 2 days ago", "Installed with v0.4.1", "Sync to update it to v0.4.2", "v0.4.3 available"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("menu missing %q:\n%s", want, view)
+		}
+	}
+
+	// Up to date: no sync or upgrade notice.
+	m.status.Version, m.latest = "0.4.2", "0.4.2"
+	if view := m.View(); strings.Contains(view, "Installed with") || strings.Contains(view, "available") {
+		t.Errorf("notices shown while up to date:\n%s", view)
 	}
 }

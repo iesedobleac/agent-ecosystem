@@ -2,8 +2,11 @@
 package tui
 
 import (
+	"context"
 	"fmt"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -190,13 +193,15 @@ type Model struct {
 	err        error
 	ok         bool
 	width      int
+	status     *installer.InstallStatus // recorded install, for the menu
+	latest     string                   // latest released version, once checked
 }
 
 // New builds the model, preselecting the previous selection when there is one.
 func New() Model {
 	prev, _ := installer.ReadSelection("")
 	detected := installer.DetectTargets(installer.Options{})
-	m := Model{detected: detected}
+	m := Model{detected: detected, status: installer.ReadStatus("")}
 
 	selectedTargets := detected
 	comps := installer.DefaultComponents()
@@ -254,7 +259,25 @@ func containsStr(list []string, v string) bool {
 }
 
 // Init implements tea.Model.
-func (m Model) Init() tea.Cmd { return nil }
+func (m Model) Init() tea.Cmd { return checkLatest }
+
+// latestMsg carries the latest released version.
+type latestMsg string
+
+// checkLatest asks GitHub for the latest release, giving up after a few
+// seconds so the menu never waits on the network.
+func checkLatest() tea.Msg {
+	if _, err := strconv.Atoi(strings.SplitN(installer.Version, ".", 2)[0]); err != nil {
+		return nil // development build
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	v, err := installer.LatestVersion(ctx)
+	if err != nil {
+		return nil
+	}
+	return latestMsg(v)
+}
 
 func (m Model) options() installer.Options {
 	opts := installer.Options{Targets: m.targets.checked(), DryRun: m.dryRun,
@@ -543,6 +566,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case doneMsg:
 		m.screen, m.res, m.err, m.ok = scDone, msg.res, msg.err, msg.ok
+		m.status = installer.ReadStatus("")
+		return m, nil
+	case latestMsg:
+		m.latest = string(msg)
 		return m, nil
 	case modelsMsg:
 		for t, list := range msg.lists {
@@ -719,14 +746,8 @@ func (m Model) View() string {
 	b.WriteString(header(m.width) + "\n\n")
 	switch m.screen {
 	case scMenu:
-		for i, it := range menuItems {
-			if i == m.menu {
-				b.WriteString(selected.Render("› "+it.label) + subtle.Render("  "+it.desc) + "\n")
-			} else {
-				b.WriteString("  " + it.label + "\n")
-			}
-		}
-		b.WriteString(help("↑/↓ move · enter select · q quit"))
+		b.WriteString(m.menuView())
+		b.WriteString("\n  " + subtle.Render("↑/↓ move · enter select · q quit"))
 	case scTargets:
 		b.WriteString(title.Render("Assistants") + subtle.Render("  (1/4)") + "\n\n" + m.targets.view())
 		b.WriteString(help("space toggle · a all · enter next · esc back"))
@@ -839,6 +860,75 @@ func (m Model) View() string {
 		b.WriteString(help("enter menu · q quit"))
 	}
 	return b.String() + "\n"
+}
+
+// menuView is the links, the install status and the menu options.
+func (m Model) menuView() string {
+	var b strings.Builder
+	b.WriteString("  " + link(installer.RepoURL, "github.com/iesedobleac/iesedoble-ai") +
+		subtle.Render(" · ") + link(installer.GuideURL, "install and usage guide") + "\n\n")
+
+	st := m.status
+	if st == nil {
+		b.WriteString("  " + subtle.Render("• Nothing installed yet: choose Install or update to start") + "\n")
+	} else {
+		var names []string
+		for _, id := range st.Targets {
+			name := installer.TargetLabels[id]
+			if name == "" {
+				name = id
+			}
+			names = append(names, name)
+		}
+		line := "  " + okStyle.Render("✓ ") + strings.Join(names, " · ")
+		if !st.Installed.IsZero() {
+			line += subtle.Render("  installed " + ago(time.Since(st.Installed)))
+		}
+		b.WriteString(line + "\n")
+		if installer.NewerVersion(st.Version, installer.Version) {
+			b.WriteString("  " + warnSty.Render("! Installed with v"+st.Version+": choose Sync to update it to v"+installer.Version) + "\n")
+		}
+	}
+	if installer.NewerVersion(installer.Version, m.latest) {
+		b.WriteString("  " + selected.Render("↑ v"+m.latest+" available: ") + installer.UpgradeCommand() + "\n")
+	}
+
+	b.WriteString("\n  " + title.Render("Menu") + "\n\n")
+	width := 0
+	for _, it := range menuItems {
+		width = max(width, len(it.label))
+	}
+	for i, it := range menuItems {
+		label := fmt.Sprintf("%-*s", width, it.label)
+		if i == m.menu {
+			b.WriteString("  " + selected.Render("› "+label))
+		} else {
+			b.WriteString("  " + subtle.Render("- ") + label)
+		}
+		b.WriteString(subtle.Render("   "+it.desc) + "\n")
+	}
+	return b.String()
+}
+
+// link is text that terminals with hyperlink support (OSC 8) open on click.
+func link(url, text string) string {
+	return "\x1b]8;;" + url + "\x1b\\" + subtle.Render(text) + "\x1b]8;;\x1b\\"
+}
+
+// ago is a short, human duration: "an hour ago", "yesterday", "3 days ago".
+func ago(d time.Duration) string {
+	switch days := int(d.Hours() / 24); {
+	case d < time.Hour:
+		return "just now"
+	case d < 2*time.Hour:
+		return "an hour ago"
+	case days == 0:
+		return fmt.Sprintf("%d hours ago", int(d.Hours()))
+	case days == 1:
+		return "yesterday"
+	default:
+		return fmt.Sprintf("%d days ago", days)
+	}
 }
 
 // check computes the requirements for a pending install or sync.

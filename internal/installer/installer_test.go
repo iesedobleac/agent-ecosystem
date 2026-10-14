@@ -5,11 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/iesedobleac/iesedoble-ai/internal/render"
 )
@@ -600,5 +603,47 @@ func TestMigrateLegacyInstall(t *testing.T) {
 		if n := strings.Count(text, "# "+toolName) + strings.Count(text, markStart); n != 1 {
 			t.Errorf("%s has %d managed blocks:\n%s", f, n, text)
 		}
+	}
+}
+
+func TestReadStatus(t *testing.T) {
+	home := t.TempDir()
+	if ReadStatus(home) != nil {
+		t.Fatal("status without an install")
+	}
+	opts := testOptions(home)
+	if _, err := Install(opts, testLogger{t}); err != nil {
+		t.Fatal(err)
+	}
+	st := ReadStatus(home)
+	if st == nil || strings.Join(st.Targets, ",") != "opencode,claude" || st.Version != Version || time.Since(st.Installed) > time.Minute {
+		t.Errorf("status: %+v", st)
+	}
+}
+
+func TestNewerVersion(t *testing.T) {
+	for _, c := range []struct {
+		current, latest string
+		want            bool
+	}{
+		{"0.4.2", "0.4.3", true}, {"0.4.2", "v0.10.0", true}, {"0.4.2", "0.4.2", false},
+		{"1.0.0", "0.9.9", false}, {"dev", "0.4.3", false}, {"0.4.2", "garbage", false},
+	} {
+		if got := NewerVersion(c.current, c.latest); got != c.want {
+			t.Errorf("NewerVersion(%q, %q) = %v", c.current, c.latest, got)
+		}
+	}
+}
+
+func TestLatestVersion(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"tag_name": "v0.5.0"}`))
+	}))
+	defer srv.Close()
+	saved := releaseURL
+	releaseURL = srv.URL
+	defer func() { releaseURL = saved }()
+	if v, err := LatestVersion(context.Background()); err != nil || v != "0.5.0" {
+		t.Errorf("LatestVersion: %q, %v", v, err)
 	}
 }
