@@ -109,7 +109,8 @@ install_binary() {
     local base="https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/download/${LATEST}"
     local tmp
     tmp="$(mktemp -d)"
-    trap 'rm -rf "${tmp}"' EXIT
+    # Expand now: the trap runs after this function's locals are gone.
+    trap "rm -rf '${tmp}'" EXIT
 
     info "Downloading ${archive}"
     curl -fsSL -o "${tmp}/${archive}" "${base}/${archive}" || fatal "Download failed: ${base}/${archive}"
