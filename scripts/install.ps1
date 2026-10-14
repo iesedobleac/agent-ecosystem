@@ -1,17 +1,17 @@
-# agent-ecosystem installer for Windows.
+# iesedoble-ai installer for Windows.
 #
-#   irm https://raw.githubusercontent.com/iesedobleac/agent-ecosystem/main/scripts/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/iesedobleac/iesedoble-ai/main/scripts/install.ps1 | iex
 #
 # Windows installs from source with `go install` until the binaries can be signed.
 $ErrorActionPreference = "Stop"
 
-$Module = "github.com/iesedobleac/agent-ecosystem/cmd/agent-ecosystem"
+$Module = "github.com/iesedobleac/iesedoble-ai/cmd/iesedoble-ai"
 
 function Write-Step($msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
 function Write-Ok($msg) { Write-Host "[ok]    $msg" -ForegroundColor Green }
 function Write-Warn($msg) { Write-Host "[warn]  $msg" -ForegroundColor Yellow }
 
-Write-Host "agent-ecosystem - agents, skills and MCP servers for your AI assistants" -ForegroundColor Cyan
+Write-Host "iesedoble-ai - agents, skills and MCP servers for your AI assistants" -ForegroundColor Cyan
 
 Write-Step "Checking prerequisites"
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
@@ -46,7 +46,7 @@ if (($env:Path -split ";") -notcontains $gobin) {
     Write-Warn "$gobin is not in your PATH. Add it with:"
     Write-Host "          [Environment]::SetEnvironmentVariable('Path', `$env:Path + ';$gobin', 'User')"
 }
-Write-Ok "Installed agent-ecosystem"
+Write-Ok "Installed iesedoble-ai"
 
 Write-Host "`nInstallation complete." -ForegroundColor Green
-Write-Host "Run agent-ecosystem to open the interactive installer, or agent-ecosystem install --help."
+Write-Host "Run iesedoble-ai to open the interactive installer, or iesedoble-ai install --help."

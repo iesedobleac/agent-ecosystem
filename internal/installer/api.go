@@ -33,6 +33,7 @@ func Install(opts Options, log Logger) (res *Result, err error) {
 	if len(opts.Targets) == 0 {
 		opts.Targets = DetectTargets(opts)
 	}
+	migrateStateDir(opts, log)
 	log, closeLog := openRunLog(opts, "install", log)
 	defer func() { closeLog(err) }()
 	for _, t := range opts.Targets {
@@ -123,6 +124,7 @@ func Install(opts Options, log Logger) (res *Result, err error) {
 
 // Uninstall removes what previous installs added, for opts.Targets or every installed target.
 func Uninstall(opts Options, log Logger) (err error) {
+	migrateStateDir(opts, log)
 	log, closeLog := openRunLog(opts, "uninstall", log)
 	defer func() { closeLog(err) }()
 	r, err := newRun(opts, log)
@@ -203,7 +205,7 @@ func Doctor(opts Options, log Logger) bool {
 		case Present:
 			log.OK(req.Name + " " + req.Detail)
 		case WillInstall:
-			log.Warn(req.Name + " missing: `agent-ecosystem sync` installs it " + req.Detail)
+			log.Warn(req.Name + " missing: `iesedoble-ai sync` installs it " + req.Detail)
 		default:
 			log.Warn(req.Name + " missing: " + req.Hint)
 			ok = ok && req.Status != Blocking
@@ -223,7 +225,7 @@ func Doctor(opts Options, log Logger) bool {
 		msg := fmt.Sprintf("%s: %d files in %s (version %s)", TargetLabels[t], len(st.Files), st.Dir, st.Version)
 		switch {
 		case missing > 0:
-			log.Warn(fmt.Sprintf("%s, %d missing; run `agent-ecosystem sync`", msg, missing))
+			log.Warn(fmt.Sprintf("%s, %d missing; run `iesedoble-ai sync`", msg, missing))
 			ok = false
 		case changed > 0:
 			log.Warn(fmt.Sprintf("%s, %d edited by hand (sync backs them up before replacing)", msg, changed))

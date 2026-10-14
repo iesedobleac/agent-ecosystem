@@ -38,7 +38,9 @@ func (r *run) installProfile() (string, error) {
 	file := r.profileFile()
 	current, _ := os.ReadFile(file)
 	if !strings.Contains(string(current), profileMark) {
-		text := strings.TrimRight(string(current), "\n") + "\n\n" + profileMark +
+		// Drop a block written under the legacy name before adding the current one.
+		rest := profileRe.ReplaceAllString(string(current), "\n")
+		text := strings.TrimRight(rest, "\n") + "\n\n" + profileMark +
 			": at most one Engram memory reminder per session per day\n" + profileLine + "\n"
 		if err := r.write(file, text); err != nil {
 			return "", err
@@ -48,7 +50,7 @@ func (r *run) installProfile() (string, error) {
 	return file, nil
 }
 
-var profileRe = regexp.MustCompile(`\n*` + regexp.QuoteMeta(profileMark) + `.*\n` + regexp.QuoteMeta(profileLine) + `\n?`)
+var profileRe = regexp.MustCompile(`\n*# ` + names + `.*\n` + regexp.QuoteMeta(profileLine) + `\n?`)
 
 func (r *run) removeProfile(file string) error {
 	if file == "" || file == "setx" {

@@ -10,6 +10,7 @@ a section says otherwise; on Windows, run them in PowerShell.
 - [First run](#first-run)
 - [Use the agents](#use-the-agents)
 - [Keep it up to date](#keep-it-up-to-date)
+- [Coming from agent-ecosystem](#coming-from-agent-ecosystem)
 - [Check your install](#check-your-install)
 - [Uninstall](#uninstall)
 - [Troubleshooting](#troubleshooting)
@@ -52,7 +53,7 @@ Open a new terminal afterwards, so the new `PATH` is loaded.
 ### macOS: Homebrew (recommended)
 
 ```bash
-brew install --cask iesedobleac/tap/agent-ecosystem
+brew install --cask iesedobleac/tap/iesedoble-ai
 ```
 
 The binary is not notarized by Apple; the cask removes the quarantine flag on install, so macOS
@@ -61,14 +62,14 @@ runs it without a warning.
 ### macOS: install script
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iesedobleac/agent-ecosystem/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/iesedobleac/iesedoble-ai/main/scripts/install.sh | bash
 ```
 
 On macOS with Homebrew the script installs the cask above. To install the binary instead,
 downloaded from GitHub Releases and checked against `checksums.txt`:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iesedobleac/agent-ecosystem/main/scripts/install.sh | bash -s -- --method binary
+curl -fsSL https://raw.githubusercontent.com/iesedobleac/iesedoble-ai/main/scripts/install.sh | bash -s -- --method binary
 ```
 
 The binary goes to `/usr/local/bin` when it is writable, otherwise to `~/.local/bin`; choose
@@ -78,7 +79,7 @@ the line to add.
 ### Windows: install script
 
 ```powershell
-irm https://raw.githubusercontent.com/iesedobleac/agent-ecosystem/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/iesedobleac/iesedoble-ai/main/scripts/install.ps1 | iex
 ```
 
 The script checks git and Go, then builds and installs the binary with `go install`. If Go's
@@ -90,19 +91,19 @@ run it and open a new terminal.
 With Go 1.26 or later, on either system:
 
 ```bash
-go install github.com/iesedobleac/agent-ecosystem/cmd/agent-ecosystem@latest
+go install github.com/iesedobleac/iesedoble-ai/cmd/iesedoble-ai@latest
 ```
 
 Check the install:
 
 ```bash
-agent-ecosystem version
+iesedoble-ai version
 ```
 
 ## First run
 
 ```bash
-agent-ecosystem
+iesedoble-ai
 ```
 
 Choose **Install or update** and go through the four steps. Move with `↑`/`↓`, toggle with
@@ -147,14 +148,14 @@ warns that this folder is not in your `PATH`, add it and open a new terminal:
 The same install, from the command line:
 
 ```bash
-agent-ecosystem install                       # detected assistants, everything, default models
-agent-ecosystem install --dry-run             # show what would change
-agent-ecosystem install --targets claude --without android,codegraph
-agent-ecosystem install --with subagent-monitor
-agent-ecosystem install --planner openai/gpt-5.5 --claude-reviewer opus
+iesedoble-ai install                       # detected assistants, everything, default models
+iesedoble-ai install --dry-run             # show what would change
+iesedoble-ai install --targets claude --without android,codegraph
+iesedoble-ai install --with subagent-monitor
+iesedoble-ai install --planner openai/gpt-5.5 --claude-reviewer opus
 ```
 
-Run `agent-ecosystem install --help` for every flag. A model the assistant does not list produces
+Run `iesedoble-ai install --help` for every flag. A model the assistant does not list produces
 a warning and the install goes on.
 
 ## Use the agents
@@ -197,15 +198,15 @@ codegraph init
 macOS:
 
 ```bash
-brew upgrade --cask iesedobleac/tap/agent-ecosystem
-agent-ecosystem sync
+brew upgrade --cask iesedobleac/tap/iesedoble-ai
+iesedoble-ai sync
 ```
 
 Windows:
 
 ```powershell
-go install github.com/iesedobleac/agent-ecosystem/cmd/agent-ecosystem@latest
-agent-ecosystem sync
+go install github.com/iesedobleac/iesedoble-ai/cmd/iesedoble-ai@latest
+iesedoble-ai sync
 ```
 
 `sync` re-applies your last selection with the new version. Files you edited are backed up
@@ -214,12 +215,31 @@ before they are replaced.
 On macOS, if you installed with the script's binary method, run the script again instead of
 `brew upgrade`. Restart OpenCode afterwards (`opencode service restart`).
 
+## Coming from agent-ecosystem
+
+`iesedoble-ai` was called `agent-ecosystem` before v0.4.0. Install the new name and run `sync`:
+
+```bash
+brew install --cask iesedobleac/tap/iesedoble-ai     # macOS
+iesedoble-ai sync
+```
+
+```powershell
+go install github.com/iesedobleac/iesedoble-ai/cmd/iesedoble-ai@latest   # Windows
+iesedoble-ai sync
+```
+
+The first run moves `~/.agent-ecosystem` (state, backups and logs) to `~/.iesedoble-ai`, and
+replaces the `agent-ecosystem` blocks in `AGENTS.md`, `CLAUDE.md` and your shell profile with the
+new ones, without duplicating them. Then remove the old command: `brew uninstall --cask
+agent-ecosystem` on macOS, or delete `agent-ecosystem.exe` from `%USERPROFILE%\go\bin` on Windows.
+
 ## Check your install
 
 On macOS:
 
 ```bash
-agent-ecosystem doctor
+iesedoble-ai doctor
 ```
 
 It only reads: the tools, the recorded install, and whether installed files are missing or were
@@ -230,8 +250,8 @@ edited by hand.
 On macOS:
 
 ```bash
-agent-ecosystem uninstall
-brew uninstall --cask agent-ecosystem
+iesedoble-ai uninstall
+brew uninstall --cask iesedoble-ai
 ```
 
 `uninstall` removes what it added: agents, skills, the rules block in `AGENTS.md` / `CLAUDE.md`,
@@ -244,23 +264,23 @@ removed.
 
 **The models step shows "choose a model" for OpenCode, or no models at all.**
 OpenCode only lists the models of connected providers. Connect one in OpenCode with `/connect`
-and run `agent-ecosystem` again, or use **Custom…** and type the model ID. When the models cannot
-be listed, the menu and `agent-ecosystem install` show why, with OpenCode's own error.
+and run `iesedoble-ai` again, or use **Custom…** and type the model ID. When the models cannot
+be listed, the menu and `iesedoble-ai install` show why, with OpenCode's own error.
 
 **An OpenCode subagent statusline still shows up.**
 Engram's setup adds it; the installer removes it unless **Subagent monitor** is selected. Run
-`agent-ecosystem sync`, then `opencode service restart`, and check with `opencode plugin list`.
+`iesedoble-ai sync`, then `opencode service restart`, and check with `opencode plugin list`.
 
 **The install stops at "Required tools".**
 A tool marked `✗` is missing: install it with the hint shown next to it and run again. **Dry run**
 still works, to see what would change.
 
 **Something failed and the message is gone.**
-Every install, sync and uninstall writes a log to `~/.agent-ecosystem/logs/`, with your selection,
+Every install, sync and uninstall writes a log to `~/.iesedoble-ai/logs/`, with your selection,
 each step and every warning; the path is shown at the end of the run. Dry runs write nothing.
 
 **A file I changed was replaced.**
-It was backed up first. Backups are in `~/.agent-ecosystem/backups/<date>/`, with the same path
+It was backed up first. Backups are in `~/.iesedoble-ai/backups/<date>/`, with the same path
 as the original.
 
 **My comments in `opencode.jsonc` are gone.**
@@ -271,9 +291,9 @@ folder.
 
 | What | Where |
 |---|---|
-| Install record and last selection | `~/.agent-ecosystem/state.json` |
-| Backups | `~/.agent-ecosystem/backups/` |
-| Logs of each install, sync and uninstall (the last 20) | `~/.agent-ecosystem/logs/` |
+| Install record and last selection | `~/.iesedoble-ai/state.json` |
+| Backups | `~/.iesedoble-ai/backups/` |
+| Logs of each install, sync and uninstall (the last 20) | `~/.iesedoble-ai/logs/` |
 | OpenCode files | `~/.config/opencode` (or `--config-dir`) |
 | Claude Code files | `~/.claude`, or `$CLAUDE_CONFIG_DIR` (or `--claude-dir`) |
 | Agent deliverables | `~/agent-deliverables` (or `--deliverables-dir`) |

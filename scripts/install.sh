@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# agent-ecosystem installer for macOS and Linux.
+# iesedoble-ai installer for macOS and Linux.
 #
-#   curl -fsSL https://raw.githubusercontent.com/iesedobleac/agent-ecosystem/main/scripts/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/iesedobleac/iesedoble-ai/main/scripts/install.sh | bash
 #
 # Methods, in order: Homebrew (macOS), pre-built binary from GitHub Releases
 # (checksum verified), go install.
 set -euo pipefail
 
 GITHUB_OWNER="iesedobleac"
-GITHUB_REPO="agent-ecosystem"
-BINARY_NAME="agent-ecosystem"
+GITHUB_REPO="iesedoble-ai"
+BINARY_NAME="iesedoble-ai"
 BREW_TAP="iesedobleac/tap"
 GO_MODULE="github.com/${GITHUB_OWNER}/${GITHUB_REPO}"
 
@@ -28,7 +28,7 @@ step()    { echo -e "\n${CYAN}${BOLD}==>${NC} ${BOLD}$*${NC}"; }
 
 show_help() {
     cat <<EOF
-agent-ecosystem installer
+iesedoble-ai installer
 
 Usage: install.sh [OPTIONS]
 
@@ -62,7 +62,7 @@ check_prerequisites() {
     [ ${#missing[@]} -eq 0 ] || fatal "Missing required tools: ${missing[*]}"
     success "curl and git are available"
     if ! command -v node >/dev/null 2>&1; then
-        warn "Node.js not found: CodeGraph needs it (agent-ecosystem doctor shows how to install it)"
+        warn "Node.js not found: CodeGraph needs it (iesedoble-ai doctor shows how to install it)"
     fi
 }
 
@@ -176,7 +176,7 @@ main() {
         esac
     done
 
-    echo -e "${CYAN}${BOLD}agent-ecosystem${NC} ${DIM}— agents, skills and MCP servers for your AI assistants${NC}"
+    echo -e "${CYAN}${BOLD}iesedoble-ai${NC} ${DIM}— agents, skills and MCP servers for your AI assistants${NC}"
     step "Detecting platform"
     detect_platform
     check_prerequisites

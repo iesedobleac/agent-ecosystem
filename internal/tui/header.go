@@ -7,17 +7,17 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/iesedobleac/agent-ecosystem/internal/installer"
+	"github.com/iesedobleac/iesedoble-ai/internal/installer"
 )
 
-// logo is "AGENT" in block letters; the subtitle below spells out the rest.
+// logo is "IESEDOBLE" in block letters; the subtitle below adds "AI".
 var logo = []string{
-	` █████╗  ██████╗ ███████╗███╗   ██╗████████╗`,
-	`██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝`,
-	`███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║   `,
-	`██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║   `,
-	`██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║   `,
-	`╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝   `,
+	`██╗███████╗███████╗███████╗██████╗  ██████╗ ██████╗ ██╗     ███████╗`,
+	`██║██╔════╝██╔════╝██╔════╝██╔══██╗██╔═══██╗██╔══██╗██║     ██╔════╝`,
+	`██║█████╗  ███████╗█████╗  ██║  ██║██║   ██║██████╔╝██║     █████╗  `,
+	`██║██╔══╝  ╚════██║██╔══╝  ██║  ██║██║   ██║██╔══██╗██║     ██╔══╝  `,
+	`██║███████╗███████║███████╗██████╔╝╚██████╔╝██████╔╝███████╗███████╗`,
+	`╚═╝╚══════╝╚══════╝╚══════╝╚═════╝  ╚═════╝ ╚═════╝ ╚══════╝╚══════╝`,
 }
 
 // gradient runs left to right across the logo: blue, purple, cyan.
@@ -47,7 +47,7 @@ func header(width int) string {
 	tagline := subtle.Render("agents, skills and MCP for your AI assistants")
 	logoWidth := utf8.RuneCountInString(logo[0])
 	if width != 0 && width < logoWidth+4 {
-		return title.Render("agent-ecosystem") + " " + subtle.Render(version) + "\n" + tagline
+		return title.Render("iesedoble-ai") + " " + subtle.Render(version) + "\n" + tagline
 	}
 
 	var b strings.Builder
@@ -69,8 +69,8 @@ func header(width int) string {
 		b.WriteString("\n")
 	}
 
-	// " E C O S Y S T E M  ──── v1.2.3", as wide as the logo.
-	name := " E C O S Y S T E M "
+	// " A I  ──── v1.2.3", as wide as the logo.
+	name := " A I   "
 	rule := max(3, logoWidth-utf8.RuneCountInString(name)-len(version)-1)
 	var sub strings.Builder
 	for i, r := range name {

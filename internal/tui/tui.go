@@ -11,8 +11,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/iesedobleac/agent-ecosystem/internal/installer"
-	"github.com/iesedobleac/agent-ecosystem/internal/render"
+	"github.com/iesedobleac/iesedoble-ai/internal/installer"
+	"github.com/iesedobleac/iesedoble-ai/internal/render"
 )
 
 var (

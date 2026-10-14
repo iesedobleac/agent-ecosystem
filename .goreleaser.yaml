@@ -1,6 +1,6 @@
 version: 2
 
-project_name: agent-ecosystem
+project_name: iesedoble-ai
 
 before:
   hooks:
@@ -8,8 +8,8 @@ before:
     - go test ./...
 
 builds:
-  - main: ./cmd/agent-ecosystem
-    binary: agent-ecosystem
+  - main: ./cmd/iesedoble-ai
+    binary: iesedoble-ai
     env:
       - CGO_ENABLED=0
     # Windows installs with `go install` until the binaries can be signed.
@@ -37,10 +37,10 @@ checksum:
   algorithm: sha256
 
 homebrew_casks:
-  - name: agent-ecosystem
+  - name: iesedoble-ai
     binaries:
-      - agent-ecosystem
-    homepage: "https://github.com/iesedobleac/agent-ecosystem"
+      - iesedoble-ai
+    homepage: "https://github.com/iesedobleac/iesedoble-ai"
     description: "Agents, skills, rules and MCP servers for OpenCode and Claude Code"
     repository:
       owner: iesedobleac
@@ -54,7 +54,7 @@ homebrew_casks:
       post:
         install: |
           if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/agent-ecosystem"]
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/iesedoble-ai"]
           end
 
 changelog:

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/iesedobleac/agent-ecosystem/internal/render"
+	"github.com/iesedobleac/iesedoble-ai/internal/render"
 )
 
 type testLogger struct{ t *testing.T }
@@ -231,7 +231,7 @@ func TestInstallReinstallUninstall(t *testing.T) {
 		t.Error("CLAUDE.md left behind")
 	}
 	var state State
-	data, _ := os.ReadFile(filepath.Join(home, ".agent-ecosystem", "state.json"))
+	data, _ := os.ReadFile(filepath.Join(home, ".iesedoble-ai", "state.json"))
 	_ = json.Unmarshal(data, &state)
 	if len(state.Targets) != 0 {
 		t.Errorf("state after uninstall: %v", state.Targets)
@@ -487,7 +487,7 @@ func TestClaudeMCPReinstall(t *testing.T) {
 
 func runLogs(t *testing.T, home string) []string {
 	t.Helper()
-	files, _ := filepath.Glob(filepath.Join(home, ".agent-ecosystem", "logs", "*.log"))
+	files, _ := filepath.Glob(filepath.Join(home, ".iesedoble-ai", "logs", "*.log"))
 	return files
 }
 
@@ -513,7 +513,7 @@ func TestRunLog(t *testing.T) {
 		t.Fatalf("logs: %v", logs)
 	}
 	data, _ := os.ReadFile(logs[0])
-	for _, want := range []string{"agent-ecosystem dev install", `"sdd": true`, "step  0/", "ok    OpenCode:", "done  install finished"} {
+	for _, want := range []string{"iesedoble-ai dev install", `"sdd": true`, "step  0/", "ok    OpenCode:", "done  install finished"} {
 		if !strings.Contains(string(data), want) {
 			t.Errorf("log missing %q:\n%s", want, data)
 		}
@@ -543,5 +543,57 @@ func TestPruneLogs(t *testing.T) {
 	files, _ := filepath.Glob(filepath.Join(dir, "*.log"))
 	if len(files) != keepLogs || !strings.Contains(files[0], "2026-01-06") {
 		t.Errorf("%d logs left, oldest %s", len(files), filepath.Base(files[0]))
+	}
+}
+
+// An install made under the legacy name (state folder, block markers, shell
+// profile line) is migrated by the next install without duplicates.
+func TestMigrateLegacyInstall(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("SHELL", "/bin/zsh")
+	opts := testOptions(home)
+	opts.NoShellProfile = false
+	if _, err := Install(opts, testLogger{t}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Turn it into a legacy install.
+	toLegacy := func(file string) {
+		data, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = os.WriteFile(file, []byte(strings.ReplaceAll(string(data), toolName, legacyName)), 0o644)
+	}
+	rules := []string{filepath.Join(opts.ConfigDir, "AGENTS.md"), filepath.Join(opts.ClaudeDir, "CLAUDE.md")}
+	zshrc := filepath.Join(home, ".zshrc")
+	for _, f := range append(rules, zshrc) {
+		toLegacy(f)
+	}
+	if err := os.Rename(filepath.Join(home, "."+toolName), filepath.Join(home, "."+legacyName)); err != nil {
+		t.Fatal(err)
+	}
+	if sel, err := ReadSelection(home); err != nil || len(sel.Targets) != 2 {
+		t.Fatalf("legacy selection: %v, %v", sel, err)
+	}
+
+	if _, err := Install(opts, testLogger{t}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(home, "."+legacyName)); !os.IsNotExist(err) {
+		t.Error("legacy state folder left behind")
+	}
+	if _, err := os.Stat(filepath.Join(home, "."+toolName, "state.json")); err != nil {
+		t.Error("state not moved to the current folder")
+	}
+	for _, f := range append(rules, zshrc) {
+		data, _ := os.ReadFile(f)
+		text := string(data)
+		if strings.Contains(text, legacyName) {
+			t.Errorf("%s still has the legacy name:\n%s", f, text)
+		}
+		if n := strings.Count(text, "# "+toolName) + strings.Count(text, markStart); n != 1 {
+			t.Errorf("%s has %d managed blocks:\n%s", f, n, text)
+		}
 	}
 }

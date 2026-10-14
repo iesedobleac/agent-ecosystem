@@ -1,4 +1,4 @@
-module github.com/iesedobleac/agent-ecosystem
+module github.com/iesedobleac/iesedoble-ai
 
 go 1.26.0
 

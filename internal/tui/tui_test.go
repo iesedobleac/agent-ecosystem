@@ -6,7 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/iesedobleac/agent-ecosystem/internal/installer"
+	"github.com/iesedobleac/iesedoble-ai/internal/installer"
 )
 
 func press(t *testing.T, m Model, keys ...tea.KeyMsg) Model {
@@ -141,10 +141,10 @@ func TestProgressSteps(t *testing.T) {
 }
 
 func TestHeaderFitsWidth(t *testing.T) {
-	if h := header(100); !strings.Contains(h, "███") || !strings.Contains(h, "E C O S Y S T E M") {
+	if h := header(100); !strings.Contains(h, "███") || !strings.Contains(h, "A I") {
 		t.Errorf("wide header:\n%s", h)
 	}
-	if h := header(40); strings.Contains(h, "███") || !strings.Contains(h, "agent-ecosystem") {
+	if h := header(40); strings.Contains(h, "███") || !strings.Contains(h, "iesedoble-ai") {
 		t.Errorf("narrow header:\n%s", h)
 	}
 }

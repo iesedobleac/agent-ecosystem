@@ -18,17 +18,20 @@ import (
 	"strings"
 	"time"
 
-	"github.com/iesedobleac/agent-ecosystem/assets"
-	"github.com/iesedobleac/agent-ecosystem/internal/render"
+	"github.com/iesedobleac/iesedoble-ai/assets"
+	"github.com/iesedobleac/iesedoble-ai/internal/render"
 )
 
 // Version is set at build time.
 var Version = "dev"
 
+// toolName names the state folder, the managed blocks and the logs.
+const toolName = "iesedoble-ai"
+
 const (
-	markStart   = "<!-- agent-ecosystem:start -->"
-	markEnd     = "<!-- agent-ecosystem:end -->"
-	profileMark = "# agent-ecosystem"
+	markStart   = "<!-- " + toolName + ":start -->"
+	markEnd     = "<!-- " + toolName + ":end -->"
+	profileMark = "# " + toolName
 	profileLine = "export ENGRAM_NUDGE_COOLDOWN_SECS=86400"
 )
 
@@ -96,7 +99,7 @@ type TargetState struct {
 	Installed string            `json:"installed"`
 }
 
-// State is ~/.agent-ecosystem/state.json.
+// State is ~/.iesedoble-ai/state.json.
 type State struct {
 	Targets   map[string]*TargetState `json:"targets"`
 	Profile   string                  `json:"profile,omitempty"`
@@ -163,7 +166,7 @@ func withDefaultModels(chosen map[string]render.Models) map[string]render.Models
 
 // ── Paths ────────────────────────────────────────────────────────────────────
 
-func (r *run) stateDir() string  { return filepath.Join(r.home, ".agent-ecosystem") }
+func (r *run) stateDir() string  { return stateDirFor(r.home) }
 func (r *run) stateFile() string { return filepath.Join(r.stateDir(), "state.json") }
 
 func expandHome(p, home string) string {
@@ -325,8 +328,9 @@ func (r *run) syncFiles(root string, files map[string]string, previous map[strin
 }
 
 var (
-	blockRe = regexp.MustCompile(`(?s)\n*` + regexp.QuoteMeta(markStart) + `.*?` + regexp.QuoteMeta(markEnd) + `\n?`)
-	innerRe = regexp.MustCompile(`(?s)` + regexp.QuoteMeta(markStart) + `.*?` + regexp.QuoteMeta(markEnd))
+	// Blocks written under the legacy name are matched too, and replaced.
+	blockRe = regexp.MustCompile(`(?s)\n*<!-- ` + names + `:start -->.*?<!-- ` + names + `:end -->\n?`)
+	innerRe = regexp.MustCompile(`(?s)<!-- ` + names + `:start -->.*?<!-- ` + names + `:end -->`)
 )
 
 func (r *run) upsertBlock(file, body string) error {
@@ -476,7 +480,7 @@ func ReadSelection(home string) (*Options, error) {
 	if home == "" {
 		home, _ = os.UserHomeDir()
 	}
-	data, err := os.ReadFile(filepath.Join(home, ".agent-ecosystem", "state.json"))
+	data, err := os.ReadFile(filepath.Join(stateDirFor(home), "state.json"))
 	if err != nil {
 		return nil, fmt.Errorf("no previous install found (%w)", err)
 	}

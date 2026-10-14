@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/menu.png" width="760" alt="The agent-ecosystem interactive installer">
+  <img src="docs/images/menu.png" width="760" alt="The iesedoble-ai interactive installer">
 </p>
 
 <h3 align="center">Fourteen agents, two skills and a memory for the AI assistants you already use.</h3>
@@ -10,10 +10,10 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/iesedobleac/agent-ecosystem/actions/workflows/ci.yml"><img src="https://github.com/iesedobleac/agent-ecosystem/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/iesedobleac/agent-ecosystem/releases/latest"><img src="https://img.shields.io/github/v/release/iesedobleac/agent-ecosystem?color=7AA2F7" alt="Latest release"></a>
-  <img src="https://img.shields.io/github/go-mod/go-version/iesedobleac/agent-ecosystem?color=7DCFFF" alt="Go version">
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/iesedobleac/agent-ecosystem?color=BB9AF7" alt="MIT license"></a>
+  <a href="https://github.com/iesedobleac/iesedoble-ai/actions/workflows/ci.yml"><img src="https://github.com/iesedobleac/iesedoble-ai/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/iesedobleac/iesedoble-ai/releases/latest"><img src="https://img.shields.io/github/v/release/iesedobleac/iesedoble-ai?color=7AA2F7" alt="Latest release"></a>
+  <img src="https://img.shields.io/github/go-mod/go-version/iesedobleac/iesedoble-ai?color=7DCFFF" alt="Go version">
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/iesedobleac/iesedoble-ai?color=BB9AF7" alt="MIT license"></a>
 </p>
 
 <p align="center">
@@ -30,8 +30,8 @@
 ## ⚡ Quick start
 
 ```bash
-brew install --cask iesedobleac/tap/agent-ecosystem
-agent-ecosystem
+brew install --cask iesedobleac/tap/iesedoble-ai
+iesedoble-ai
 ```
 
 Pick your assistants, the components and a model per role, review, install. That's it.
@@ -48,19 +48,19 @@ agents, updating, uninstalling and troubleshooting.
 binary from GitHub Releases and verifies its checksum.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iesedobleac/agent-ecosystem/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/iesedobleac/iesedoble-ai/main/scripts/install.sh | bash
 ```
 
 **Windows (PowerShell)**: checks git and Go, then builds and installs with `go install`.
 
 ```powershell
-irm https://raw.githubusercontent.com/iesedobleac/agent-ecosystem/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/iesedobleac/iesedoble-ai/main/scripts/install.ps1 | iex
 ```
 
 **From source** (Go 1.26+)
 
 ```bash
-go install github.com/iesedobleac/agent-ecosystem/cmd/agent-ecosystem@latest
+go install github.com/iesedobleac/iesedoble-ai/cmd/iesedoble-ai@latest
 ```
 
 </details>
@@ -176,11 +176,11 @@ Copilot in OpenCode, reaching one fails with "does not support assistant message
 The menu covers everything; the same options work without it.
 
 ```bash
-agent-ecosystem install --targets opencode,claude --dry-run   # see what would change
-agent-ecosystem install --without android --claude-planner sonnet
-agent-ecosystem sync        # re-apply the last selection, e.g. after upgrading
-agent-ecosystem doctor      # read-only health check
-agent-ecosystem uninstall   # remove everything it installed
+iesedoble-ai install --targets opencode,claude --dry-run   # see what would change
+iesedoble-ai install --without android --claude-planner sonnet
+iesedoble-ai sync        # re-apply the last selection, e.g. after upgrading
+iesedoble-ai doctor      # read-only health check
+iesedoble-ai uninstall   # remove everything it installed
 ```
 
 <details>
@@ -221,13 +221,13 @@ A model the assistant does not list produces a warning, and the install goes on.
 
 ## 🏠 How it treats your machine
 
-- 💾 **Backups.** A file you edited is copied to `~/.agent-ecosystem/backups/<date>/` before it is
+- 💾 **Backups.** A file you edited is copied to `~/.iesedoble-ai/backups/<date>/` before it is
   replaced.
 - 🤝 **Your configuration stays.** MCP servers with the same name are left untouched, rules go in a
   marked block, and deny rules are only ever added.
-- 📝 **State.** `~/.agent-ecosystem/state.json` records what was installed and your selection;
+- 📝 **State.** `~/.iesedoble-ai/state.json` records what was installed and your selection;
   `sync` reuses it and `uninstall` removes what it lists.
-- 🧾 **Logs.** Every install, sync and uninstall leaves a log in `~/.agent-ecosystem/logs/` (the
+- 🧾 **Logs.** Every install, sync and uninstall leaves a log in `~/.iesedoble-ai/logs/` (the
   last 20 are kept).
 - ⚠️ **`opencode.jsonc` comments are lost.** The file is rewritten as plain JSON, after a backup.
 
@@ -235,7 +235,7 @@ A model the assistant does not list produces a warning, and the install goes on.
 
 ```bash
 go test ./...
-go run ./cmd/agent-ecosystem install --dry-run
+go run ./cmd/iesedoble-ai install --dry-run
 ```
 
 <details>

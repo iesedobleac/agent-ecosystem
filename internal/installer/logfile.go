@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// keepLogs is how many run logs stay in ~/.agent-ecosystem/logs.
+// keepLogs is how many run logs stay in ~/.iesedoble-ai/logs.
 const keepLogs = 20
 
 // fileLogger copies every message and progress step to a run log, then passes
@@ -48,7 +48,7 @@ func openRunLog(opts Options, action string, log Logger) (Logger, func(err error
 	if home == "" {
 		home, _ = os.UserHomeDir()
 	}
-	dir := filepath.Join(home, ".agent-ecosystem", "logs")
+	dir := filepath.Join(stateDirFor(home), "logs")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return log, func(error) {}
 	}
@@ -68,7 +68,7 @@ func openRunLog(opts Options, action string, log Logger) (Logger, func(err error
 		Components Components
 		Models     map[string]any
 	}{opts.Targets, opts.Components, models}, "", "  ")
-	fmt.Fprintf(f, "agent-ecosystem %s %s\n%s %s/%s\n%s\n\n", Version, action,
+	fmt.Fprintf(f, toolName+" %s %s\n%s %s/%s\n%s\n\n", Version, action,
 		now.Format(time.RFC3339), runtime.GOOS, runtime.GOARCH, selection)
 	pruneLogs(dir)
 	fl := fileLogger{next: log, f: f}

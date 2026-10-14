@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/iesedobleac/agent-ecosystem/internal/render"
+	"github.com/iesedobleac/iesedoble-ai/internal/render"
 )
 
 type claudeCode struct{}
@@ -61,7 +61,7 @@ func (c claudeCode) detected(r *run) bool {
 
 func (c claudeCode) dirs(r *run) targetDirs {
 	dir := c.dir(r)
-	return targetDirs{tmp: tempDir("", "agent-ecosystem"), data: dir, skills: filepath.Join(dir, "skills")}
+	return targetDirs{tmp: tempDir("", "iesedoble-ai"), data: dir, skills: filepath.Join(dir, "skills")}
 }
 
 func (claudeCode) requirements(Options) []Requirement {

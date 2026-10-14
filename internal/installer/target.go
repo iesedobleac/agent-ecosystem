@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/iesedobleac/agent-ecosystem/internal/render"
+	"github.com/iesedobleac/iesedoble-ai/internal/render"
 )
 
 // Target is one assistant the ecosystem installs into. Install, Uninstall,

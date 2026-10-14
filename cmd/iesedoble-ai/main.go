@@ -1,4 +1,4 @@
-// Command agent-ecosystem installs agents, skills, rules and MCP servers for AI assistants.
+// Command iesedoble-ai installs agents, skills, rules and MCP servers for AI assistants.
 package main
 
 import (
@@ -9,24 +9,24 @@ import (
 
 	"golang.org/x/term"
 
-	"github.com/iesedobleac/agent-ecosystem/internal/installer"
-	"github.com/iesedobleac/agent-ecosystem/internal/render"
-	"github.com/iesedobleac/agent-ecosystem/internal/tui"
+	"github.com/iesedobleac/iesedoble-ai/internal/installer"
+	"github.com/iesedobleac/iesedoble-ai/internal/render"
+	"github.com/iesedobleac/iesedoble-ai/internal/tui"
 )
 
 var version = "dev"
 
-const usage = `agent-ecosystem %s
+const usage = `iesedoble-ai %s
 
 Usage:
-  agent-ecosystem                    interactive installer
-  agent-ecosystem install [flags]    install or update without the menu
-  agent-ecosystem sync [--dry-run]   re-apply the last selection (after an upgrade)
-  agent-ecosystem uninstall [--targets ...] [--dry-run]
-  agent-ecosystem doctor             read-only health check
-  agent-ecosystem version
+  iesedoble-ai                    interactive installer
+  iesedoble-ai install [flags]    install or update without the menu
+  iesedoble-ai sync [--dry-run]   re-apply the last selection (after an upgrade)
+  iesedoble-ai uninstall [--targets ...] [--dry-run]
+  iesedoble-ai doctor             read-only health check
+  iesedoble-ai version
 
-Run "agent-ecosystem install --help" for the install flags.
+Run "iesedoble-ai install --help" for the install flags.
 `
 
 type cliLogger struct{}
@@ -71,7 +71,7 @@ func main() {
 			os.Exit(1)
 		}
 	case "version", "--version", "-v":
-		fmt.Println("agent-ecosystem " + version)
+		fmt.Println("iesedoble-ai " + version)
 	case "help", "--help", "-h":
 		fmt.Printf(usage, version)
 	default:

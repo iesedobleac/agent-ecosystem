@@ -7,8 +7,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/iesedobleac/agent-ecosystem/assets"
-	"github.com/iesedobleac/agent-ecosystem/internal/render"
+	"github.com/iesedobleac/iesedoble-ai/assets"
+	"github.com/iesedobleac/iesedoble-ai/internal/render"
 )
 
 var values = map[string]string{
