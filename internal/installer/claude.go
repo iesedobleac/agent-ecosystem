@@ -235,9 +235,16 @@ func (c claudeCode) install(r *run, src *sources, st *TargetState) error {
 	}
 	var added []string
 	for _, name := range sortedKeys(wanted) {
-		if !contains(st.MCP, name) && c.mcpExists(r, dir, name) {
-			r.log.Info("Claude Code: MCP " + name + " already configured; left as is")
-			continue
+		if c.mcpExists(r, dir, name) {
+			if !contains(st.MCP, name) {
+				r.log.Info("Claude Code: MCP " + name + " already configured; left as is")
+				continue
+			}
+			// Ours from a previous run: `claude mcp add-json` does not overwrite,
+			// so remove it and add the current entry.
+			if err := c.mcpRemove(r, dir, name); err != nil {
+				return err
+			}
 		}
 		if err := c.mcpAdd(r, dir, name, wanted[name].ClaudeEntry()); err != nil {
 			return err

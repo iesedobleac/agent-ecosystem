@@ -460,3 +460,26 @@ func TestSubagentMonitorV2(t *testing.T) {
 		t.Errorf("cli.json plugins: %v", config["plugins"])
 	}
 }
+
+// Re-running an install updates its own Claude Code MCP servers without
+// `claude mcp add-json` failing because they already exist.
+func TestClaudeMCPReinstall(t *testing.T) {
+	opts := testOptions(t.TempDir())
+	opts.Targets = []string{"claude"}
+	for run := 1; run <= 2; run++ {
+		var warns []string
+		if _, err := Install(opts, warnLogger{&warns}); err != nil {
+			t.Fatal(err)
+		}
+		for _, w := range warns {
+			if strings.Contains(w, "add-json") {
+				t.Errorf("run %d: %s", run, w)
+			}
+		}
+	}
+	config, _ := readJSON(filepath.Join(opts.ClaudeDir, ".claude.json"))
+	servers, _ := config["mcpServers"].(map[string]any)
+	if servers["codegraph"] == nil || servers["engram"] == nil {
+		t.Errorf("MCP servers after reinstall: %v", servers)
+	}
+}
