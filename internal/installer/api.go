@@ -53,6 +53,7 @@ func Install(opts Options, log Logger) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
+	r.checkModels()
 	if err := r.ensureDependencies(opts.Targets); err != nil {
 		return nil, err
 	}

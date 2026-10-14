@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/iesedobleac/agent-ecosystem/internal/render"
 )
 
 type testLogger struct{ t *testing.T }
@@ -17,6 +19,42 @@ func (l testLogger) Warn(s string) { l.t.Log("warn: " + s) }
 func init() {
 	// CI machines have no assistants installed; requirements are tested separately.
 	checkRequirements = func(Options) []Requirement { return nil }
+	listModels = func(string) ([]string, bool) { return nil, false }
+}
+
+type warnLogger struct{ warns *[]string }
+
+func (warnLogger) Info(string)     {}
+func (warnLogger) OK(string)       {}
+func (l warnLogger) Warn(s string) { *l.warns = append(*l.warns, s) }
+
+func TestCheckModels(t *testing.T) {
+	saved := listModels
+	defer func() { listModels = saved }()
+	listModels = func(target string) ([]string, bool) {
+		if target == "opencode" {
+			return []string{"openai/gpt-5.5"}, true
+		}
+		return ClaudeModels, true
+	}
+	opts := testOptions(t.TempDir())
+	opts.Models = map[string]render.Models{
+		"opencode": {"planner": "openai/gpt-5.5", "executor": "openai/gpt-5.5", "reviewer": "openai/missing"},
+		"claude":   {"planner": "opus", "executor": "claude-haiku-4-5-20251001", "reviewer": "gpt"},
+	}
+	var warns []string
+	if _, err := Install(opts, warnLogger{&warns}); err != nil {
+		t.Fatal(err)
+	}
+	var models []string
+	for _, w := range warns {
+		if strings.Contains(w, "not among the available models") {
+			models = append(models, w)
+		}
+	}
+	if len(models) != 2 || !strings.Contains(models[0], `"openai/missing"`) || !strings.Contains(models[1], `"gpt"`) {
+		t.Errorf("model warnings: %q", models)
+	}
 }
 
 func testOptions(home string) Options {

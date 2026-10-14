@@ -111,6 +111,12 @@ Model profiles: **planner** for orchestrators, exploration and planning agents; 
 `android-worker`, `android-device` and `sdd-apply`; **reviewer** for `android-review` and
 `sdd-verify`.
 
+The menu lists the models each assistant offers: OpenCode's come from `opencode models` (only
+providers you have connected), Claude Code's are `opus`, `sonnet`, `haiku`, `fable` and `inherit`.
+"Custom…" takes any other model ID, such as a full Claude model ID. A default is only preselected
+when the assistant lists it; otherwise you choose. On the command line, a model the assistant
+does not list produces a warning and the install continues.
+
 ## How it behaves on your machine
 
 - **Safe re-runs.** A file you edited is copied to `~/.agent-ecosystem/backups/<date>/` before it

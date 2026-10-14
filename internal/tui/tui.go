@@ -146,6 +146,12 @@ type doneMsg struct {
 	err error
 }
 
+// modelsMsg carries the listed models per target; nil when they could not be listed.
+type modelsMsg map[string][]string
+
+// pickRows is how many models the picker shows at once.
+const pickRows = 10
+
 // Model is the Bubble Tea model.
 type Model struct {
 	screen     screen
@@ -154,9 +160,17 @@ type Model struct {
 	detected   []string
 	targets    checklist
 	components checklist
-	models     []textinput.Model
+	values     []string    // chosen model per modelKeys entry; empty until chosen
 	modelKeys  [][2]string // target, profile
-	modelFocus int
+	modelFocus int         // row on the models screen; one past the last is Continue
+	modelNote  string
+	avail      map[string][]string // listed models per target; nil when they could not be listed
+	listed     map[string]bool     // targets whose models were looked up
+	picking    bool
+	pickFilter textinput.Model
+	pickCursor int
+	pickCustom bool
+	pickInput  textinput.Model
 	review     int
 	dryRun     bool
 	pending    action            // what the requirements screen confirms
@@ -203,21 +217,20 @@ func New() Model {
 	if prev != nil && prev.Models != nil {
 		models = prev.Models
 	}
+	// Defaults are filled in once the models are listed, and only if available.
 	for _, t := range installer.AllTargets {
 		for _, profile := range []string{"planner", "executor", "reviewer"} {
-			ti := textinput.New()
-			ti.Prompt = ""
-			ti.CharLimit = 120
-			ti.Width = 50
-			value := installer.DefaultModels[t][profile]
-			if v := models[t][profile]; v != "" {
-				value = v
-			}
-			ti.SetValue(value)
-			m.models = append(m.models, ti)
+			m.values = append(m.values, models[t][profile])
 			m.modelKeys = append(m.modelKeys, [2]string{t, profile})
 		}
 	}
+	m.avail, m.listed = map[string][]string{}, map[string]bool{}
+	m.pickFilter = textinput.New()
+	m.pickFilter.Prompt = "Filter: "
+	m.pickInput = textinput.New()
+	m.pickInput.Prompt = "Model ID: "
+	m.pickInput.CharLimit = 120
+	m.pickInput.Width = 50
 	m.spin = spinner.New()
 	m.spin.Spinner = spinner.Dot
 	return m
@@ -248,9 +261,164 @@ func (m Model) options() installer.Options {
 		if opts.Models[k[0]] == nil {
 			opts.Models[k[0]] = render.Models{}
 		}
-		opts.Models[k[0]][k[1]] = strings.TrimSpace(m.models[i].Value())
+		opts.Models[k[0]][k[1]] = m.values[i]
 	}
 	return opts
+}
+
+// modelsReady reports whether the models of every selected target were looked up.
+func (m Model) modelsReady() bool {
+	for _, t := range m.targets.checked() {
+		if !m.listed[t] {
+			return false
+		}
+	}
+	return true
+}
+
+// enterModels opens the models screen, listing the models it has not looked up yet.
+func (m Model) enterModels() (Model, tea.Cmd) {
+	m.screen, m.modelFocus, m.modelNote, m.picking = scModels, 0, "", false
+	var todo []string
+	for _, t := range m.targets.checked() {
+		if !m.listed[t] {
+			todo = append(todo, t)
+		}
+	}
+	if len(todo) == 0 {
+		return m, nil
+	}
+	return m, tea.Batch(m.spin.Tick, func() tea.Msg {
+		out := modelsMsg{}
+		for _, t := range todo {
+			if list, ok := installer.AvailableModels(t); ok {
+				out[t] = list
+			} else {
+				out[t] = nil
+			}
+		}
+		return out
+	})
+}
+
+// pickOptions are the listed models of the target being picked that match the filter.
+func (m Model) pickOptions() []string {
+	t := m.modelKeys[m.visibleModels()[m.modelFocus]][0]
+	filter := strings.ToLower(strings.TrimSpace(m.pickFilter.Value()))
+	var out []string
+	for _, v := range m.avail[t] {
+		if strings.Contains(strings.ToLower(v), filter) {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+// openPicker starts choosing the model of the focused row.
+func (m Model) openPicker() (Model, tea.Cmd) {
+	i := m.visibleModels()[m.modelFocus]
+	m.picking, m.pickCursor, m.modelNote = true, 0, ""
+	m.pickFilter.SetValue("")
+	m.pickInput.SetValue(m.values[i])
+	m.pickCustom = m.avail[m.modelKeys[i][0]] == nil
+	if m.pickCustom {
+		m.pickFilter.Blur()
+		return m, m.pickInput.Focus()
+	}
+	for n, v := range m.pickOptions() {
+		if v == m.values[i] {
+			m.pickCursor = n
+		}
+	}
+	m.pickInput.Blur()
+	return m, m.pickFilter.Focus()
+}
+
+func (m Model) handlePicker(msg tea.KeyMsg, key string) (Model, tea.Cmd) {
+	i := m.visibleModels()[m.modelFocus]
+	var cmd tea.Cmd
+	if m.pickCustom {
+		switch key {
+		case "enter":
+			if v := strings.TrimSpace(m.pickInput.Value()); v != "" {
+				m.values[i], m.picking = v, false
+			}
+		case "esc":
+			if m.avail[m.modelKeys[i][0]] == nil {
+				m.picking = false
+			} else {
+				m.pickCustom = false
+				m.pickInput.Blur()
+				cmd = m.pickFilter.Focus()
+			}
+		default:
+			m.pickInput, cmd = m.pickInput.Update(msg)
+		}
+		return m, cmd
+	}
+	opts := m.pickOptions()
+	switch key {
+	case "up":
+		if m.pickCursor > 0 {
+			m.pickCursor--
+		}
+	case "down":
+		if m.pickCursor < len(opts) { // the last row is Custom…
+			m.pickCursor++
+		}
+	case "enter":
+		if m.pickCursor < len(opts) {
+			m.values[i], m.picking = opts[m.pickCursor], false
+			return m, nil
+		}
+		m.pickCustom = true
+		if f := strings.TrimSpace(m.pickFilter.Value()); f != "" {
+			m.pickInput.SetValue(f)
+		}
+		m.pickFilter.Blur()
+		return m, m.pickInput.Focus()
+	case "esc":
+		m.picking = false
+	default:
+		m.pickFilter, cmd = m.pickFilter.Update(msg)
+		m.pickCursor = 0
+	}
+	return m, cmd
+}
+
+func (m Model) pickerView() string {
+	var b strings.Builder
+	i := m.visibleModels()[m.modelFocus]
+	k := m.modelKeys[i]
+	b.WriteString(title.Render(fmt.Sprintf("%s %s model", installer.TargetLabels[k[0]], k[1])) + "\n\n")
+	if m.pickCustom {
+		if m.avail[k[0]] == nil {
+			b.WriteString(warnSty.Render("Could not list the "+installer.TargetLabels[k[0]]+" models: connect a provider there, or type a model ID.") + "\n\n")
+		}
+		b.WriteString(m.pickInput.View() + "\n")
+		return b.String() + help("type a model ID · enter confirm · esc back")
+	}
+	b.WriteString(m.pickFilter.View() + "\n\n")
+	opts := append(m.pickOptions(), "Custom…")
+	start := 0
+	if m.pickCursor >= pickRows {
+		start = m.pickCursor - pickRows + 1
+	}
+	for n := start; n < len(opts) && n < start+pickRows; n++ {
+		label := opts[n]
+		switch {
+		case n == m.pickCursor:
+			b.WriteString(selected.Render("› "+label) + "\n")
+		case label == m.values[i]:
+			b.WriteString("  " + okStyle.Render(label) + "\n")
+		default:
+			b.WriteString("  " + label + "\n")
+		}
+	}
+	if len(opts) > pickRows {
+		b.WriteString(subtle.Render(fmt.Sprintf("  %d models, type to filter", len(opts)-1)) + "\n")
+	}
+	return b.String() + help("↑/↓ move · type to filter · enter choose · esc back")
 }
 
 // visibleModels are the model inputs for the selected targets.
@@ -330,8 +498,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case doneMsg:
 		m.screen, m.res, m.err, m.ok = scDone, msg.res, msg.err, msg.ok
 		return m, nil
+	case modelsMsg:
+		for t, list := range msg {
+			m.avail[t], m.listed[t] = list, true
+		}
+		// Preselect a default only where the assistant lists it; otherwise the user chooses.
+		for i, k := range m.modelKeys {
+			if _, ok := msg[k[0]]; ok && m.values[i] == "" {
+				if def := installer.DefaultModels[k[0]][k[1]]; installer.KnownModel(k[0], def, m.avail[k[0]]) {
+					m.values[i] = def
+				}
+			}
+		}
+		return m, nil
 	case spinner.TickMsg:
-		if m.screen == scRunning || m.screen == scChecking {
+		if m.screen == scRunning || m.screen == scChecking || (m.screen == scModels && !m.modelsReady()) {
 			var cmd tea.Cmd
 			m.spin, cmd = m.spin.Update(msg)
 			return m, cmd
@@ -391,52 +572,45 @@ func (m Model) handleKey(msg tea.KeyMsg, key string) (tea.Model, tea.Cmd) {
 			if m.screen == scTargets && len(m.targets.checked()) == 0 {
 				return m, nil
 			}
-			m.screen = next
 			if next == scModels {
-				m.modelFocus = 0
-				if vis := m.visibleModels(); len(vis) > 0 {
-					m.models[vis[0]].Focus()
-				}
+				return m.enterModels()
 			}
+			m.screen = next
 		case "esc":
 			m.screen = prev
 		default:
 			list.update(key)
 		}
 	case scModels:
+		if m.picking {
+			return m.handlePicker(msg, key)
+		}
 		vis := m.visibleModels()
 		switch key {
 		case "esc":
-			for _, i := range vis {
-				m.models[i].Blur()
-			}
 			m.screen = scComponents
-			return m, nil
-		case "up", "shift+tab":
+		case "up", "k", "shift+tab":
 			if m.modelFocus > 0 {
-				m.models[vis[m.modelFocus]].Blur()
 				m.modelFocus--
-				m.models[vis[m.modelFocus]].Focus()
 			}
-			return m, nil
-		case "down", "tab":
-			if m.modelFocus < len(vis)-1 {
-				m.models[vis[m.modelFocus]].Blur()
+		case "down", "j", "tab":
+			if m.modelFocus < len(vis) {
 				m.modelFocus++
-				m.models[vis[m.modelFocus]].Focus()
 			}
-			return m, nil
-		case "enter":
+		case "enter", " ":
+			if !m.modelsReady() {
+				return m, nil
+			}
+			if m.modelFocus < len(vis) {
+				return m.openPicker()
+			}
 			for _, i := range vis {
-				m.models[i].Blur()
+				if m.values[i] == "" {
+					m.modelNote = "Choose a model for every row."
+					return m, nil
+				}
 			}
 			m.screen, m.review = scReview, 0
-			return m, nil
-		}
-		if len(vis) > 0 {
-			var cmd tea.Cmd
-			m.models[vis[m.modelFocus]], cmd = m.models[vis[m.modelFocus]].Update(msg)
-			return m, cmd
 		}
 	case scReview:
 		switch key {
@@ -449,10 +623,7 @@ func (m Model) handleKey(msg tea.KeyMsg, key string) (tea.Model, tea.Cmd) {
 				m.review++
 			}
 		case "esc":
-			m.screen, m.modelFocus = scModels, 0
-			if vis := m.visibleModels(); len(vis) > 0 {
-				m.models[vis[0]].Focus()
-			}
+			m.screen, m.modelFocus, m.modelNote = scModels, 0, ""
 		case "enter":
 			switch m.review {
 			case 0:
@@ -519,15 +690,38 @@ func (m Model) View() string {
 		b.WriteString(help("space toggle · a all · enter next · esc back"))
 	case scModels:
 		b.WriteString(title.Render("Models") + subtle.Render("  (3/4) planner: orchestrators and planning · executor: worker, device, apply · reviewer: review, verify") + "\n\n")
-		for n, i := range m.visibleModels() {
-			k := m.modelKeys[i]
-			label := fmt.Sprintf("%-12s %-9s", installer.TargetLabels[k[0]], k[1])
-			if n == m.modelFocus {
-				label = selected.Render(label)
+		switch {
+		case !m.modelsReady():
+			b.WriteString(m.spin.View() + " Listing the available models…\n")
+		case m.picking:
+			b.WriteString(m.pickerView())
+		default:
+			vis := m.visibleModels()
+			for n, i := range vis {
+				k := m.modelKeys[i]
+				label := fmt.Sprintf("%-12s %-9s", installer.TargetLabels[k[0]], k[1])
+				value := m.values[i]
+				if value == "" {
+					value = warnSty.Render("choose a model")
+				}
+				if n == m.modelFocus {
+					b.WriteString(selected.Render("› "+label) + " " + value + "\n")
+				} else {
+					b.WriteString("  " + label + " " + value + "\n")
+				}
 			}
-			b.WriteString(label + " " + m.models[i].View() + "\n")
+			cont := "Continue →"
+			if m.modelFocus == len(vis) {
+				cont = selected.Render("› " + cont)
+			} else {
+				cont = "  " + cont
+			}
+			b.WriteString("\n" + cont + "\n")
+			if m.modelNote != "" {
+				b.WriteString("\n" + warnSty.Render(m.modelNote) + "\n")
+			}
+			b.WriteString(help("↑/↓ move · enter choose · esc back"))
 		}
-		b.WriteString(help("↑/↓ move · type to edit · enter next · esc back"))
 	case scReview:
 		opts := m.options()
 		var lines []string
