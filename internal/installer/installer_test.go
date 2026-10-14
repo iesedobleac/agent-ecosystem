@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -552,7 +553,8 @@ func TestMigrateLegacyInstall(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("SHELL", "/bin/zsh")
 	opts := testOptions(home)
-	opts.NoShellProfile = false
+	// Windows keeps the setting with setx, not in a profile file.
+	opts.NoShellProfile = runtime.GOOS == "windows"
 	if _, err := Install(opts, testLogger{t}); err != nil {
 		t.Fatal(err)
 	}
@@ -566,8 +568,11 @@ func TestMigrateLegacyInstall(t *testing.T) {
 		_ = os.WriteFile(file, []byte(strings.ReplaceAll(string(data), toolName, legacyName)), 0o644)
 	}
 	rules := []string{filepath.Join(opts.ConfigDir, "AGENTS.md"), filepath.Join(opts.ClaudeDir, "CLAUDE.md")}
-	zshrc := filepath.Join(home, ".zshrc")
-	for _, f := range append(rules, zshrc) {
+	files := rules
+	if !opts.NoShellProfile {
+		files = append(files, filepath.Join(home, ".zshrc"))
+	}
+	for _, f := range files {
 		toLegacy(f)
 	}
 	if err := os.Rename(filepath.Join(home, "."+toolName), filepath.Join(home, "."+legacyName)); err != nil {
@@ -586,7 +591,7 @@ func TestMigrateLegacyInstall(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(home, "."+toolName, "state.json")); err != nil {
 		t.Error("state not moved to the current folder")
 	}
-	for _, f := range append(rules, zshrc) {
+	for _, f := range files {
 		data, _ := os.ReadFile(f)
 		text := string(data)
 		if strings.Contains(text, legacyName) {
