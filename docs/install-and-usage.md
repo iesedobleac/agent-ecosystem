@@ -90,7 +90,7 @@ Choose **Install or update** and go through the four steps. Move with `↑`/`↓
    | Context warning | OpenCode toast when a session passes 200k tokens |
    | Engram memory | Persistent memory MCP server and plugin |
    | CodeGraph | Code graph MCP server |
-   | Subagent monitor | Keeps the OpenCode subagent statusline that Engram's setup adds to `tui.json`. Off by default: the installer removes it, after backing up `tui.json` |
+   | Subagent monitor | Keeps the OpenCode subagent statusline that Engram's setup adds. Off by default: the installer removes it from `tui.json` and `cli.json`, after a backup |
 
 3. **Models.** One model per role and assistant: **planner** (orchestrators and planning),
    **executor** (implementation and device work) and **reviewer** (review and verification).

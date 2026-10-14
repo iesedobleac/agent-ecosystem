@@ -111,8 +111,8 @@ go install github.com/iesedobleac/agent-ecosystem/cmd/agent-ecosystem@latest
 | 🔔 **Plugin** | Context warning: a toast past 200k tokens, then every +100k | Not needed |
 
 Every component can be switched off in the menu or with `--without`. Engram's setup also adds an
-OpenCode subagent statusline to `tui.json`; the installer removes it unless you select
-**Subagent monitor** (`--with subagent-monitor`).
+OpenCode subagent statusline; the installer removes it from `tui.json` and `cli.json` unless you
+select **Subagent monitor** (`--with subagent-monitor`).
 
 ## 🤖 The agents
 

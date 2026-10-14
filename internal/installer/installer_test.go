@@ -428,3 +428,35 @@ func TestSubagentMonitor(t *testing.T) {
 		t.Errorf("empty plugin list left: %v", config)
 	}
 }
+
+func TestSubagentMonitorV2(t *testing.T) {
+	opts := testOptions(t.TempDir())
+	opts.Targets = []string{"opencode"}
+	cli := filepath.Join(opts.ConfigDir, "cli.json")
+	if err := os.MkdirAll(opts.ConfigDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	original := `{"$schema": "https://opencode.ai/v2/cli.json", "plugins": ["-opencode.notifications", "opencode-subagent-statusline@latest", {"package": "opencode-subagent-statusline"}]}`
+	if err := os.WriteFile(cli, []byte(original), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Install(opts, testLogger{t}); err != nil {
+		t.Fatal(err)
+	}
+	config, _ := readJSON(cli)
+	plugins, ok := config["plugins"].([]any)
+	if !ok || len(plugins) != 1 || plugins[0] != "-opencode.notifications" || config["$schema"] == nil {
+		t.Errorf("cli.json after removal: %v", config)
+	}
+
+	// Only monitor entries: an empty list stays, the way OpenCode writes it.
+	if err := os.WriteFile(cli, []byte(`{"plugins": ["opencode-subagent-statusline"]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Install(opts, testLogger{t}); err != nil {
+		t.Fatal(err)
+	}
+	if config, _ := readJSON(cli); config["plugins"] == nil || len(config["plugins"].([]any)) != 0 {
+		t.Errorf("cli.json plugins: %v", config["plugins"])
+	}
+}

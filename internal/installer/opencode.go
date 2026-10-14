@@ -295,17 +295,48 @@ func (o openCode) install(r *run, src *sources, st *TargetState) error {
 // subagentMonitor is the OpenCode TUI plugin `engram setup opencode` adds.
 const subagentMonitor = "opencode-subagent-statusline"
 
-// syncSubagentMonitor removes the subagent monitor from tui.json unless it is
-// selected. `engram setup` adds it again on every run, so this runs after it.
+// isSubagentMonitor matches a plugin entry: the package name, optionally with a
+// version ("…@latest"), or V2's {"package": …} form.
+func isSubagentMonitor(entry any) bool {
+	if obj, ok := entry.(map[string]any); ok {
+		entry = obj["package"]
+	}
+	name, _ := entry.(string)
+	return name == subagentMonitor || strings.HasPrefix(name, subagentMonitor+"@")
+}
+
+// syncSubagentMonitor removes the subagent monitor unless it is selected.
+// `engram setup` adds it to the V1 tui.json on every run, so this runs after it;
+// OpenCode V2 migrates tui.json into cli.json and loads plugins from there.
 func (o openCode) syncSubagentMonitor(r *run) error {
 	if r.opts.Components.SubagentMonitor {
 		return nil
 	}
 	dir := o.configDir(r)
-	file := filepath.Join(dir, "tui.json")
-	if _, err := os.Stat(filepath.Join(dir, "tui.jsonc")); err == nil {
-		file = filepath.Join(dir, "tui.jsonc")
+	for _, f := range []struct {
+		names     []string
+		key       string
+		dropEmpty bool
+	}{
+		{[]string{"tui.jsonc", "tui.json"}, "plugin", true},   // V1
+		{[]string{"cli.jsonc", "cli.json"}, "plugins", false}, // V2
+	} {
+		for _, name := range f.names {
+			file := filepath.Join(dir, name)
+			if _, err := os.Stat(file); err != nil {
+				continue
+			}
+			if err := r.removePluginEntry(file, f.key, f.dropEmpty); err != nil {
+				return err
+			}
+			break
+		}
 	}
+	return nil
+}
+
+// removePluginEntry drops the subagent monitor from the key list in file.
+func (r *run) removePluginEntry(file, key string, dropEmpty bool) error {
 	raw, err := os.ReadFile(file)
 	if err != nil {
 		return nil
@@ -314,20 +345,20 @@ func (o openCode) syncSubagentMonitor(r *run) error {
 	if err != nil {
 		return err
 	}
-	plugins, _ := config["plugin"].([]any)
-	var kept []any
+	plugins, _ := config[key].([]any)
+	kept := []any{}
 	for _, p := range plugins {
-		if p != subagentMonitor {
+		if !isSubagentMonitor(p) {
 			kept = append(kept, p)
 		}
 	}
 	if len(kept) == len(plugins) {
 		return nil
 	}
-	if len(kept) == 0 {
-		delete(config, "plugin")
+	if len(kept) == 0 && dropEmpty {
+		delete(config, key)
 	} else {
-		config["plugin"] = kept
+		config[key] = kept
 	}
 	if hasComments(string(raw)) {
 		r.log.Warn(filepath.Base(file) + " is rewritten as plain JSON; comments are not kept (backup in " + r.backup + ")")
