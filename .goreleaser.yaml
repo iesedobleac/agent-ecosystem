@@ -52,9 +52,9 @@ homebrew_casks:
     # The binary is not notarized: clear the quarantine flag so macOS runs it.
     hooks:
       post:
-        install_steps: |
-          on_macos do
-            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/agent-ecosystem"]
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/agent-ecosystem"]
           end
 
 changelog:
