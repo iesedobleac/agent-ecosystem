@@ -17,8 +17,8 @@ type Target interface {
 	flagPrefix() string
 	binary() string // command that runs the assistant
 	defaultModels() render.Models
-	// availableModels lists the models it can use; ok is false when they cannot be listed.
-	availableModels() (models []string, ok bool)
+	// availableModels lists the models it can use, or says why it cannot.
+	availableModels() ([]string, error)
 	// knownModel reports whether model is valid, given the listed ones.
 	knownModel(model string, available []string) bool
 	// detected reports whether the assistant or its config is on this machine.

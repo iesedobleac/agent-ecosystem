@@ -1,12 +1,15 @@
 package installer
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -96,25 +99,61 @@ func (openCode) requirements(opts Options) []Requirement {
 	return reqs
 }
 
-func (openCode) availableModels() ([]string, bool) {
-	if which("opencode") == "" {
-		return nil, false
+// opencodeModelsArgs are tried in order: --standalone lists from a private
+// server, since the background service can be stopped and then lists nothing;
+// versions without that flag list with the plain command.
+var opencodeModelsArgs = [][]string{{"models", "--standalone"}, {"models"}}
+
+// runOpenCode runs opencode with args; replaced in tests.
+var runOpenCode = func(ctx context.Context, args ...string) (stdout, stderr []byte, err error) {
+	cmd := exec.CommandContext(ctx, "opencode", args...)
+	var out, errOut bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &out, &errOut
+	// On Windows opencode is often a .cmd shim whose child process keeps the
+	// pipes open after a timeout kill; stop waiting for them.
+	cmd.WaitDelay = 2 * time.Second
+	err = cmd.Run()
+	return out.Bytes(), errOut.Bytes(), err
+}
+
+var ansiRe = regexp.MustCompile(`\x1b\[[0-9;?]*[A-Za-z]`)
+
+func (openCode) availableModels() ([]string, error) {
+	var reasons []string
+	for _, args := range opencodeModelsArgs {
+		models, err := listOpenCodeModels(args...)
+		if err == nil {
+			return models, nil
+		}
+		reasons = append(reasons, "opencode "+strings.Join(args, " ")+": "+err.Error())
 	}
+	return nil, errors.New(strings.Join(reasons, "; "))
+}
+
+func listOpenCodeModels(args ...string) ([]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	// --standalone: the background service can be stopped and then lists nothing.
-	out, err := exec.CommandContext(ctx, "opencode", "models", "--standalone").Output()
-	if err != nil {
-		return nil, false
+	out, stderr, err := runOpenCode(ctx, args...)
+	switch {
+	case ctx.Err() == context.DeadlineExceeded:
+		return nil, errors.New("timed out after 60s")
+	case err != nil:
+		if msg := strings.TrimSpace(ansiRe.ReplaceAllString(lastLine(string(stderr)), "")); msg != "" {
+			return nil, fmt.Errorf("%v: %s", err, msg)
+		}
+		return nil, err
 	}
 	var models []string
-	for _, line := range strings.Split(string(out), "\n") {
+	for _, line := range strings.Split(ansiRe.ReplaceAllString(string(out), ""), "\n") {
 		line = strings.TrimSpace(line)
 		if strings.Contains(line, "/") && !strings.ContainsAny(line, " \t") {
 			models = append(models, line)
 		}
 	}
-	return models, len(models) > 0
+	if len(models) == 0 {
+		return nil, errors.New("no models listed (is a provider connected?)")
+	}
+	return models, nil
 }
 
 func (openCode) knownModel(model string, available []string) bool {

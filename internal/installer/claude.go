@@ -75,7 +75,7 @@ func (claudeCode) requirements(Options) []Requirement {
 }
 
 // availableModels has no command to call: Claude Code takes a fixed set of aliases.
-func (claudeCode) availableModels() ([]string, bool) { return ClaudeModels, true }
+func (claudeCode) availableModels() ([]string, error) { return ClaudeModels, nil }
 
 // knownModel also accepts full model IDs.
 func (claudeCode) knownModel(model string, available []string) bool {

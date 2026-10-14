@@ -1,7 +1,9 @@
 package installer
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,7 +21,7 @@ func (l testLogger) Warn(s string) { l.t.Log("warn: " + s) }
 func init() {
 	// CI machines have no assistants installed; requirements are tested separately.
 	checkRequirements = func(Options) []Requirement { return nil }
-	listModels = func(string) ([]string, bool) { return nil, false }
+	listModels = func(string) ([]string, error) { return nil, errors.New("not listed in tests") }
 }
 
 type warnLogger struct{ warns *[]string }
@@ -74,11 +76,11 @@ func TestProgress(t *testing.T) {
 func TestCheckModels(t *testing.T) {
 	saved := listModels
 	defer func() { listModels = saved }()
-	listModels = func(target string) ([]string, bool) {
+	listModels = func(target string) ([]string, error) {
 		if target == "opencode" {
-			return []string{"openai/gpt-5.5"}, true
+			return []string{"openai/gpt-5.5"}, nil
 		}
-		return ClaudeModels, true
+		return ClaudeModels, nil
 	}
 	opts := testOptions(t.TempDir())
 	opts.Models = map[string]render.Models{
@@ -325,5 +327,55 @@ func TestUninstallClaudeMCPFromRecordedDir(t *testing.T) {
 	config, _ := readJSON(filepath.Join(opts.ClaudeDir, ".claude.json"))
 	if servers, _ := config["mcpServers"].(map[string]any); len(servers) > 0 {
 		t.Errorf("MCP servers left behind: %v", servers)
+	}
+}
+
+func stubOpenCode(t *testing.T, run func(args ...string) (stdout, stderr string, err error)) {
+	t.Helper()
+	saved := runOpenCode
+	t.Cleanup(func() { runOpenCode = saved })
+	runOpenCode = func(_ context.Context, args ...string) ([]byte, []byte, error) {
+		out, errOut, err := run(args...)
+		return []byte(out), []byte(errOut), err
+	}
+}
+
+func TestOpenCodeModelsFallsBackWithoutStandalone(t *testing.T) {
+	var calls []string
+	stubOpenCode(t, func(args ...string) (string, string, error) {
+		calls = append(calls, strings.Join(args, " "))
+		if len(args) == 2 {
+			return "", "error: unknown flag --standalone\n", errors.New("exit status 1")
+		}
+		// Windows line endings and colour codes.
+		return "\x1b[1mopenai/gpt-5.5\x1b[0m\r\nopencode/big-pickle\r\n\r\n", "", nil
+	})
+	models, err := openCode{}.availableModels()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(models, ",") != "openai/gpt-5.5,opencode/big-pickle" {
+		t.Errorf("models: %q", models)
+	}
+	if strings.Join(calls, " | ") != "models --standalone | models" {
+		t.Errorf("calls: %v", calls)
+	}
+}
+
+func TestOpenCodeModelsReason(t *testing.T) {
+	stubOpenCode(t, func(args ...string) (string, string, error) {
+		if len(args) == 2 {
+			return "", "some log\nError: boom\n", errors.New("exit status 1")
+		}
+		return "", "", nil // succeeds but lists nothing
+	})
+	_, err := openCode{}.availableModels()
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	for _, want := range []string{"opencode models --standalone: exit status 1: Error: boom", "opencode models: no models listed"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("reason %q missing %q", err, want)
+		}
 	}
 }

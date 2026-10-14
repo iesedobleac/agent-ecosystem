@@ -41,7 +41,7 @@ func TestModelsScreen(t *testing.T) {
 		t.Fatal("picker opened before the models were listed")
 	}
 
-	next, _ := m.Update(modelsMsg{"opencode": {"openai/gpt-5.5", "openai/gpt-5.6-terra"}, "claude": installer.ClaudeModels})
+	next, _ := m.Update(modelsMsg{lists: map[string][]string{"opencode": {"openai/gpt-5.5", "openai/gpt-5.6-terra"}, "claude": installer.ClaudeModels}})
 	m = next.(Model)
 	opts := m.options()
 	if opts.Models["claude"]["planner"] != "opus" || opts.Models["claude"]["reviewer"] != "sonnet" {
@@ -91,11 +91,14 @@ func TestPickerWithoutList(t *testing.T) {
 	}
 	m.screen = scComponents
 	m = press(t, m, enter)
-	next, _ := m.Update(modelsMsg{"opencode": nil})
+	next, _ := m.Update(modelsMsg{lists: map[string][]string{"opencode": nil}, errs: map[string]string{"opencode": "opencode models: timed out after 60s"}})
 	m = next.(Model)
 	m = press(t, m, enter)
 	if !m.picking || !m.pickCustom {
 		t.Fatal("expected the model ID input when nothing is listed")
+	}
+	if view := m.View(); !strings.Contains(view, "timed out after 60s") {
+		t.Errorf("reason not shown:\n%s", view)
 	}
 	m = press(t, m, typed("p/m"), enter)
 	if v := m.options().Models["opencode"]["planner"]; v != "p/m" {

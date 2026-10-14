@@ -145,8 +145,12 @@ type doneMsg struct {
 	err error
 }
 
-// modelsMsg carries the listed models per target; nil when they could not be listed.
-type modelsMsg map[string][]string
+// modelsMsg carries the listed models per target; a target that could not be
+// listed has a nil list and the reason in errs.
+type modelsMsg struct {
+	lists map[string][]string
+	errs  map[string]string
+}
 
 // pickRows is how many models the picker shows at once.
 const pickRows = 10
@@ -164,6 +168,7 @@ type Model struct {
 	modelFocus int         // row on the models screen; one past the last is Continue
 	modelNote  string
 	avail      map[string][]string // listed models per target; nil when they could not be listed
+	availErr   map[string]string   // why a target's models could not be listed
 	listed     map[string]bool     // targets whose models were looked up
 	picking    bool
 	pickFilter textinput.Model
@@ -225,7 +230,7 @@ func New() Model {
 			m.modelKeys = append(m.modelKeys, [2]string{t, profile})
 		}
 	}
-	m.avail, m.listed = map[string][]string{}, map[string]bool{}
+	m.avail, m.availErr, m.listed = map[string][]string{}, map[string]string{}, map[string]bool{}
 	m.pickFilter = textinput.New()
 	m.pickFilter.Prompt = "Filter: "
 	m.pickInput = textinput.New()
@@ -291,12 +296,13 @@ func (m Model) enterModels() (Model, tea.Cmd) {
 		return m, nil
 	}
 	return m, tea.Batch(m.spin.Tick, func() tea.Msg {
-		out := modelsMsg{}
+		out := modelsMsg{lists: map[string][]string{}, errs: map[string]string{}}
 		for _, t := range todo {
-			if list, ok := installer.AvailableModels(t); ok {
-				out[t] = list
-			} else {
-				out[t] = nil
+			list, err := installer.AvailableModels(t)
+			out.lists[t] = list
+			if err != nil {
+				out.lists[t] = nil
+				out.errs[t] = err.Error()
 			}
 		}
 		return out
@@ -388,6 +394,23 @@ func (m Model) handlePicker(msg tea.KeyMsg, key string) (Model, tea.Cmd) {
 	return m, cmd
 }
 
+// wrap breaks text into lines of at most width runes, at spaces.
+func wrap(text string, width int) string {
+	var lines []string
+	line := ""
+	for _, w := range strings.Fields(text) {
+		if line != "" && len([]rune(line))+1+len([]rune(w)) > width {
+			lines = append(lines, line)
+			line = ""
+		}
+		if line != "" {
+			line += " "
+		}
+		line += w
+	}
+	return strings.Join(append(lines, line), "\n")
+}
+
 func (m Model) pickerView() string {
 	var b strings.Builder
 	i := m.visibleModels()[m.modelFocus]
@@ -395,7 +418,8 @@ func (m Model) pickerView() string {
 	b.WriteString(title.Render(fmt.Sprintf("%s %s model", installer.TargetLabels[k[0]], k[1])) + "\n\n")
 	if m.pickCustom {
 		if m.avail[k[0]] == nil {
-			b.WriteString(warnSty.Render("Could not list the "+installer.TargetLabels[k[0]]+" models: connect a provider there, or type a model ID.") + "\n\n")
+			b.WriteString(warnSty.Render("Could not list the "+installer.TargetLabels[k[0]]+" models. Type a model ID, or fix the cause and run again:") + "\n")
+			b.WriteString(subtle.Render(wrap(m.availErr[k[0]], max(40, m.width-4))) + "\n\n")
 		}
 		b.WriteString(m.pickInput.View() + "\n")
 		return b.String() + help("type a model ID · enter confirm · esc back")
@@ -519,12 +543,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.screen, m.res, m.err, m.ok = scDone, msg.res, msg.err, msg.ok
 		return m, nil
 	case modelsMsg:
-		for t, list := range msg {
-			m.avail[t], m.listed[t] = list, true
+		for t, list := range msg.lists {
+			m.avail[t], m.availErr[t], m.listed[t] = list, msg.errs[t], true
 		}
 		// Preselect a default only where the assistant lists it; otherwise the user chooses.
 		for i, k := range m.modelKeys {
-			if _, ok := msg[k[0]]; ok && m.values[i] == "" {
+			if _, ok := msg.lists[k[0]]; ok && m.values[i] == "" {
 				if def := installer.DefaultModels[k[0]][k[1]]; installer.KnownModel(k[0], def, m.avail[k[0]]) {
 					m.values[i] = def
 				}
