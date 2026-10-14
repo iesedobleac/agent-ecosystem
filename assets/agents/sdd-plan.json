@@ -1,0 +1,100 @@
+{
+  "name": "sdd-plan",
+  "description": "Translates a spec into a justified technical plan with modules, data model, alternatives, test strategy, and RF traceability, saving only approved ai/specs/<name>/plan.md files without code.",
+  "mode": "subagent",
+  "profile": "planner",
+  "hidden": false,
+  "steps": null,
+  "rules": [
+    [
+      "*",
+      "*",
+      "deny"
+    ],
+    [
+      "read",
+      "*",
+      "allow"
+    ],
+    [
+      "read",
+      "*.env",
+      "ask"
+    ],
+    [
+      "read",
+      "*.env.*",
+      "ask"
+    ],
+    [
+      "read",
+      "*.env.example",
+      "allow"
+    ],
+    [
+      "grep",
+      "*",
+      "allow"
+    ],
+    [
+      "glob",
+      "*",
+      "allow"
+    ],
+    [
+      "list",
+      "*",
+      "allow"
+    ],
+    [
+      "codegraph_*",
+      "*",
+      "allow"
+    ],
+    [
+      "execute",
+      "*",
+      "allow"
+    ],
+    [
+      "edit",
+      "*",
+      "deny"
+    ],
+    [
+      "edit",
+      "specs/*/plan.md",
+      "allow"
+    ],
+    [
+      "edit",
+      "**/specs/*/plan.md",
+      "allow"
+    ],
+    [
+      "edit",
+      "@@OPENCODE_TMP@@/sdd-drafts/*",
+      "allow"
+    ],
+    [
+      "external_directory",
+      "@@OPENCODE_TMP@@/*",
+      "allow"
+    ],
+    [
+      "external_directory",
+      "@@OPENCODE_TOOL_OUTPUT@@/*",
+      "allow"
+    ],
+    [
+      "external_directory",
+      "@@GRADLE_CACHES@@/*",
+      "allow"
+    ],
+    [
+      "external_directory",
+      "@@ANDROID_SDK@@/*",
+      "allow"
+    ]
+  ]
+}

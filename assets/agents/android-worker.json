@@ -1,0 +1,210 @@
+{
+  "name": "android-worker",
+  "description": "Implementation writer for closed, already-designed tasks. Edits only the allowed surfaces, runs the given verification, and returns structured evidence. Escalates with closed options instead of guessing.",
+  "mode": "subagent",
+  "profile": "executor",
+  "hidden": true,
+  "steps": null,
+  "rules": [
+    [
+      "*",
+      "*",
+      "deny"
+    ],
+    [
+      "read",
+      "*",
+      "allow"
+    ],
+    [
+      "read",
+      "*.env",
+      "ask"
+    ],
+    [
+      "read",
+      "*.env.*",
+      "ask"
+    ],
+    [
+      "read",
+      "*.env.example",
+      "allow"
+    ],
+    [
+      "grep",
+      "*",
+      "allow"
+    ],
+    [
+      "glob",
+      "*",
+      "allow"
+    ],
+    [
+      "list",
+      "*",
+      "allow"
+    ],
+    [
+      "codegraph_*",
+      "*",
+      "allow"
+    ],
+    [
+      "execute",
+      "*",
+      "allow"
+    ],
+    [
+      "edit",
+      "*",
+      "allow"
+    ],
+    [
+      "shell",
+      "*",
+      "ask"
+    ],
+    [
+      "shell",
+      "cd *",
+      "allow"
+    ],
+    [
+      "shell",
+      "./gradlew *",
+      "allow"
+    ],
+    [
+      "shell",
+      "tail *",
+      "allow"
+    ],
+    [
+      "shell",
+      "git status *",
+      "allow"
+    ],
+    [
+      "shell",
+      "git diff *",
+      "allow"
+    ],
+    [
+      "shell",
+      "cat *",
+      "deny"
+    ],
+    [
+      "shell",
+      "head *",
+      "deny"
+    ],
+    [
+      "shell",
+      "rg *",
+      "deny"
+    ],
+    [
+      "shell",
+      "grep *",
+      "deny"
+    ],
+    [
+      "shell",
+      "find *",
+      "deny"
+    ],
+    [
+      "shell",
+      "sed *",
+      "deny"
+    ],
+    [
+      "shell",
+      "awk *",
+      "deny"
+    ],
+    [
+      "shell",
+      "set *",
+      "deny"
+    ],
+    [
+      "shell",
+      "git add *",
+      "deny"
+    ],
+    [
+      "shell",
+      "git commit *",
+      "deny"
+    ],
+    [
+      "shell",
+      "git push *",
+      "deny"
+    ],
+    [
+      "shell",
+      "git reset *",
+      "deny"
+    ],
+    [
+      "shell",
+      "git checkout *",
+      "deny"
+    ],
+    [
+      "shell",
+      "git switch *",
+      "deny"
+    ],
+    [
+      "shell",
+      "git restore *",
+      "deny"
+    ],
+    [
+      "shell",
+      "git clean *",
+      "deny"
+    ],
+    [
+      "shell",
+      "git stash *",
+      "deny"
+    ],
+    [
+      "shell",
+      "git rebase *",
+      "deny"
+    ],
+    [
+      "external_directory",
+      "@@OPENCODE_TMP@@/*",
+      "allow"
+    ],
+    [
+      "external_directory",
+      "@@OPENCODE_TOOL_OUTPUT@@/*",
+      "allow"
+    ],
+    [
+      "external_directory",
+      "@@GRADLE_CACHES@@/*",
+      "allow"
+    ],
+    [
+      "external_directory",
+      "@@ANDROID_SDK@@/*",
+      "allow"
+    ],
+    [
+      "external_directory",
+      "@@DELIVERABLES@@/*",
+      "allow"
+    ]
+  ]
+}

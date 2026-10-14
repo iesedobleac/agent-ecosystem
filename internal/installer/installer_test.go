@@ -1,0 +1,230 @@
+package installer
+
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+type testLogger struct{ t *testing.T }
+
+func (l testLogger) Info(s string) { l.t.Log("info: " + s) }
+func (l testLogger) OK(s string)   { l.t.Log("ok: " + s) }
+func (l testLogger) Warn(s string) { l.t.Log("warn: " + s) }
+
+func init() {
+	// CI machines have no assistants installed; requirements are tested separately.
+	checkRequirements = func(Options) []Requirement { return nil }
+}
+
+func testOptions(home string) Options {
+	return Options{
+		Targets:        []string{"opencode", "claude"},
+		Components:     DefaultComponents(),
+		ConfigDir:      filepath.Join(home, ".config", "opencode"),
+		ClaudeDir:      filepath.Join(home, ".claude-test"),
+		SkipDeps:       true,
+		NoShellProfile: true,
+		Home:           home,
+	}
+}
+
+func countFiles(t *testing.T, dir string) int {
+	t.Helper()
+	n := 0
+	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
+		if err == nil && !info.IsDir() {
+			n++
+		}
+		return nil
+	})
+	return n
+}
+
+func TestInstallReinstallUninstall(t *testing.T) {
+	home := t.TempDir()
+	opts := testOptions(home)
+	ocDir, clDir := opts.ConfigDir, opts.ClaudeDir
+
+	// Existing user configuration that must survive.
+	if err := os.MkdirAll(ocDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(ocDir, "AGENTS.md"), []byte("# Mine\n"), 0o644)
+	os.WriteFile(filepath.Join(ocDir, "opencode.jsonc"), []byte(`{
+  // comment
+  "share": "disabled",
+  "mcp": {"servers": {"mine": {"type": "local", "command": ["x"]}}},
+}`), 0o644)
+
+	res, err := Install(opts, testLogger{t})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.NextSteps) == 0 {
+		t.Error("no next steps")
+	}
+	ocAgents := countFiles(t, filepath.Join(ocDir, "agents"))
+	clAgents := countFiles(t, filepath.Join(clDir, "agents"))
+	if ocAgents != 14 || clAgents != 14 {
+		t.Fatalf("agents: opencode %d, claude %d", ocAgents, clAgents)
+	}
+	agentsMd, _ := os.ReadFile(filepath.Join(ocDir, "AGENTS.md"))
+	if !strings.HasPrefix(string(agentsMd), "# Mine\n") || strings.Count(string(agentsMd), markStart) != 1 {
+		t.Errorf("AGENTS.md:\n%s", agentsMd)
+	}
+	config, err := readJSON(filepath.Join(ocDir, "opencode.jsonc"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	servers := config["mcp"].(map[string]any)["servers"].(map[string]any)
+	for _, s := range []string{"mine", "engram", "codegraph"} {
+		if _, ok := servers[s]; !ok {
+			t.Errorf("OpenCode MCP %s missing", s)
+		}
+	}
+	claudeJSON, err := readJSON(filepath.Join(clDir, ".claude.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(claudeJSON["mcpServers"].(map[string]any)) != 2 {
+		t.Errorf("Claude MCP servers: %v", claudeJSON["mcpServers"])
+	}
+	settings, _ := readJSON(filepath.Join(clDir, "settings.json"))
+	if len(settings["permissions"].(map[string]any)["deny"].([]any)) != len(claudeDeny) {
+		t.Errorf("deny rules: %v", settings)
+	}
+
+	// Re-running changes nothing.
+	before, _ := os.ReadFile(filepath.Join(ocDir, "AGENTS.md"))
+	if _, err := Install(opts, testLogger{t}); err != nil {
+		t.Fatal(err)
+	}
+	after, _ := os.ReadFile(filepath.Join(ocDir, "AGENTS.md"))
+	if string(before) != string(after) {
+		t.Error("AGENTS.md changed on re-run")
+	}
+	settings, _ = readJSON(filepath.Join(clDir, "settings.json"))
+	if len(settings["permissions"].(map[string]any)["deny"].([]any)) != len(claudeDeny) {
+		t.Error("deny rules duplicated on re-run")
+	}
+
+	// A hand-edited file is backed up before it is replaced.
+	edited := filepath.Join(ocDir, "agents", "sdd-apply.md")
+	os.WriteFile(edited, []byte("edited"), 0o644)
+	res, err = Install(opts, testLogger{t})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.BackupDir == "" {
+		t.Error("no backup of the edited file")
+	}
+
+	// Sync reuses the saved selection.
+	saved, err := ReadSelection(home)
+	if err != nil || len(saved.Targets) != 2 {
+		t.Fatalf("saved selection: %v %v", saved, err)
+	}
+
+	if err := Uninstall(Options{Home: home}, testLogger{t}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(ocDir, "agents")); !os.IsNotExist(err) {
+		t.Error("OpenCode agents dir left behind")
+	}
+	agentsMd, _ = os.ReadFile(filepath.Join(ocDir, "AGENTS.md"))
+	if string(agentsMd) != "# Mine\n" {
+		t.Errorf("AGENTS.md after uninstall: %q", agentsMd)
+	}
+	config, _ = readJSON(filepath.Join(ocDir, "opencode.jsonc"))
+	servers = config["mcp"].(map[string]any)["servers"].(map[string]any)
+	if len(servers) != 1 || servers["mine"] == nil {
+		t.Errorf("OpenCode MCP after uninstall: %v", servers)
+	}
+	if _, err := os.Stat(filepath.Join(clDir, "CLAUDE.md")); !os.IsNotExist(err) {
+		t.Error("CLAUDE.md left behind")
+	}
+	var state State
+	data, _ := os.ReadFile(filepath.Join(home, ".agent-ecosystem", "state.json"))
+	_ = json.Unmarshal(data, &state)
+	if len(state.Targets) != 0 {
+		t.Errorf("state after uninstall: %v", state.Targets)
+	}
+}
+
+func TestComponents(t *testing.T) {
+	home := t.TempDir()
+	opts := testOptions(home)
+	opts.Targets = []string{"claude"}
+	opts.Components.Android = false
+	if _, err := Install(opts, testLogger{t}); err != nil {
+		t.Fatal(err)
+	}
+	dir := opts.ClaudeDir
+	if _, err := os.Stat(filepath.Join(dir, "agents", "android-orchestrator.md")); !os.IsNotExist(err) {
+		t.Error("android-orchestrator installed without the Android component")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "agents", "android-worker.md")); err != nil {
+		t.Error("android-worker should come with SDD")
+	}
+	claudeJSON, _ := readJSON(filepath.Join(dir, ".claude.json"))
+	if claudeJSON["mcpServers"].(map[string]any)["codegraph"] == nil {
+		t.Error("codegraph MCP missing")
+	}
+
+	// Dropping a component removes what it added.
+	opts.Components.CodeGraph = false
+	opts.Components.SDD = false
+	if _, err := Install(opts, testLogger{t}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "skills", "sdd-workflow")); !os.IsNotExist(err) {
+		t.Error("sdd-workflow skill left behind")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "agents", "android-worker.md")); !os.IsNotExist(err) {
+		t.Error("android-worker left behind without SDD or Android")
+	}
+	claudeJSON, _ = readJSON(filepath.Join(dir, ".claude.json"))
+	if claudeJSON["mcpServers"].(map[string]any)["codegraph"] != nil {
+		t.Error("codegraph MCP left behind")
+	}
+}
+
+func TestRequirements(t *testing.T) {
+	t.Setenv("PATH", t.TempDir()) // nothing is installed
+	opts := Options{Targets: []string{"opencode", "claude"}, Components: DefaultComponents()}
+	byName := map[string]Requirement{}
+	for _, r := range Requirements(opts) {
+		byName[r.Name] = r
+	}
+	want := map[string]Status{"git": Blocking, "Node.js 18+ and npm": Optional, "Engram": WillInstall,
+		"CodeGraph": Optional, "OpenCode": Blocking, "Claude Code": Optional}
+	for name, status := range want {
+		if r, ok := byName[name]; !ok || r.Status != status {
+			t.Errorf("%s: got %+v, want status %d", name, r, status)
+		}
+	}
+	if len(Blockers(Requirements(opts))) != 2 {
+		t.Error("git and OpenCode should block")
+	}
+	opts.Components = Components{}
+	opts.Targets = []string{"claude"}
+	for _, r := range Requirements(opts) {
+		if r.Name == "Node.js 18+ and npm" || r.Name == "Engram" || r.Name == "CodeGraph" {
+			t.Errorf("%s listed for a selection that does not need it", r.Name)
+		}
+	}
+
+	// Install refuses to run with a blocker, but a dry run only warns.
+	saved := checkRequirements
+	checkRequirements = Requirements
+	defer func() { checkRequirements = saved }()
+	home := t.TempDir()
+	o := testOptions(home)
+	o.Targets = []string{"opencode"}
+	if _, err := Install(o, testLogger{t}); err == nil || !strings.Contains(err.Error(), "OpenCode") {
+		t.Errorf("install without OpenCode: %v", err)
+	}
+}

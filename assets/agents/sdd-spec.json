@@ -1,0 +1,85 @@
+{
+  "name": "sdd-spec",
+  "description": "Defines or revises functional specs with numbered EARS requirements and up to six individual questions; proposes requirement-change diffs and saves only approved ai/specs/<name>/spec.md.",
+  "mode": "subagent",
+  "profile": "planner",
+  "hidden": false,
+  "steps": null,
+  "rules": [
+    [
+      "*",
+      "*",
+      "deny"
+    ],
+    [
+      "read",
+      "*",
+      "allow"
+    ],
+    [
+      "read",
+      "*.env",
+      "ask"
+    ],
+    [
+      "read",
+      "*.env.*",
+      "ask"
+    ],
+    [
+      "read",
+      "*.env.example",
+      "allow"
+    ],
+    [
+      "grep",
+      "*",
+      "allow"
+    ],
+    [
+      "glob",
+      "*",
+      "allow"
+    ],
+    [
+      "list",
+      "*",
+      "allow"
+    ],
+    [
+      "codegraph_*",
+      "*",
+      "allow"
+    ],
+    [
+      "execute",
+      "*",
+      "allow"
+    ],
+    [
+      "edit",
+      "*",
+      "deny"
+    ],
+    [
+      "edit",
+      "specs/*/spec.md",
+      "allow"
+    ],
+    [
+      "edit",
+      "**/specs/*/spec.md",
+      "allow"
+    ],
+    [
+      "external_directory",
+      "@@OPENCODE_TMP@@/*",
+      "allow"
+    ],
+    [
+      "external_directory",
+      "@@OPENCODE_TOOL_OUTPUT@@/*",
+      "allow"
+    ]
+  ]
+}

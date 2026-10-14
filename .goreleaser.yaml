@@ -1,0 +1,66 @@
+version: 2
+
+project_name: agent-ecosystem
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - main: ./cmd/agent-ecosystem
+    binary: agent-ecosystem
+    env:
+      - CGO_ENABLED=0
+    # Windows installs with `go install` until the binaries can be signed.
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+
+archives:
+  - formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE*
+      - README.md
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+homebrew_casks:
+  - name: agent-ecosystem
+    binaries:
+      - agent-ecosystem
+    homepage: "https://github.com/iesedobleac/agent-ecosystem"
+    description: "Agents, skills, rules and MCP servers for OpenCode and Claude Code"
+    repository:
+      owner: iesedobleac
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    # The binary is not notarized: clear the quarantine flag so macOS runs it.
+    hooks:
+      post:
+        install_steps: |
+          on_macos do
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/agent-ecosystem"]
+          end
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"

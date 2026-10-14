@@ -1,0 +1,70 @@
+{
+  "name": "sdd-clarify",
+  "description": "Reviews a requested spec as a QA specialist, detecting ambiguities, contradictions, missing edge cases, and constitutional conflicts without resolving them or editing files.",
+  "mode": "subagent",
+  "profile": "planner",
+  "hidden": false,
+  "steps": null,
+  "rules": [
+    [
+      "*",
+      "*",
+      "deny"
+    ],
+    [
+      "read",
+      "*",
+      "allow"
+    ],
+    [
+      "read",
+      "*.env",
+      "ask"
+    ],
+    [
+      "read",
+      "*.env.*",
+      "ask"
+    ],
+    [
+      "read",
+      "*.env.example",
+      "allow"
+    ],
+    [
+      "grep",
+      "*",
+      "allow"
+    ],
+    [
+      "glob",
+      "*",
+      "allow"
+    ],
+    [
+      "list",
+      "*",
+      "allow"
+    ],
+    [
+      "codegraph_*",
+      "*",
+      "allow"
+    ],
+    [
+      "execute",
+      "*",
+      "allow"
+    ],
+    [
+      "external_directory",
+      "@@OPENCODE_TMP@@/*",
+      "allow"
+    ],
+    [
+      "external_directory",
+      "@@OPENCODE_TOOL_OUTPUT@@/*",
+      "allow"
+    ]
+  ]
+}

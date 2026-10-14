@@ -1,0 +1,70 @@
+{
+  "name": "sdd-constitution",
+  "description": "Helps agree on project principles through focused questions and proposes a concise constitution at docs/constitution.md.",
+  "mode": "subagent",
+  "profile": "planner",
+  "hidden": false,
+  "steps": null,
+  "rules": [
+    [
+      "*",
+      "*",
+      "deny"
+    ],
+    [
+      "read",
+      "*",
+      "allow"
+    ],
+    [
+      "read",
+      "*.env",
+      "ask"
+    ],
+    [
+      "read",
+      "*.env.*",
+      "ask"
+    ],
+    [
+      "read",
+      "*.env.example",
+      "allow"
+    ],
+    [
+      "grep",
+      "*",
+      "allow"
+    ],
+    [
+      "glob",
+      "*",
+      "allow"
+    ],
+    [
+      "list",
+      "*",
+      "allow"
+    ],
+    [
+      "codegraph_*",
+      "*",
+      "allow"
+    ],
+    [
+      "execute",
+      "*",
+      "allow"
+    ],
+    [
+      "external_directory",
+      "@@OPENCODE_TMP@@/*",
+      "allow"
+    ],
+    [
+      "external_directory",
+      "@@OPENCODE_TOOL_OUTPUT@@/*",
+      "allow"
+    ]
+  ]
+}

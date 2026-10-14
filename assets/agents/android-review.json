@@ -1,0 +1,105 @@
+{
+  "name": "android-review",
+  "description": "On-demand diff reviewer. Checks a change against its task, acceptance criteria, and project style, classifies findings by severity, and never edits.",
+  "mode": "subagent",
+  "profile": "reviewer",
+  "hidden": true,
+  "steps": 15,
+  "rules": [
+    [
+      "*",
+      "*",
+      "deny"
+    ],
+    [
+      "read",
+      "*",
+      "allow"
+    ],
+    [
+      "read",
+      "*.env",
+      "ask"
+    ],
+    [
+      "read",
+      "*.env.*",
+      "ask"
+    ],
+    [
+      "read",
+      "*.env.example",
+      "allow"
+    ],
+    [
+      "grep",
+      "*",
+      "allow"
+    ],
+    [
+      "glob",
+      "*",
+      "allow"
+    ],
+    [
+      "list",
+      "*",
+      "allow"
+    ],
+    [
+      "codegraph_*",
+      "*",
+      "allow"
+    ],
+    [
+      "execute",
+      "*",
+      "allow"
+    ],
+    [
+      "shell",
+      "*",
+      "deny"
+    ],
+    [
+      "shell",
+      "git diff *",
+      "allow"
+    ],
+    [
+      "shell",
+      "git status *",
+      "allow"
+    ],
+    [
+      "shell",
+      "git log *",
+      "allow"
+    ],
+    [
+      "shell",
+      "git show *",
+      "allow"
+    ],
+    [
+      "external_directory",
+      "@@OPENCODE_TMP@@/*",
+      "allow"
+    ],
+    [
+      "external_directory",
+      "@@OPENCODE_TOOL_OUTPUT@@/*",
+      "allow"
+    ],
+    [
+      "external_directory",
+      "@@GRADLE_CACHES@@/*",
+      "allow"
+    ],
+    [
+      "external_directory",
+      "@@ANDROID_SDK@@/*",
+      "allow"
+    ]
+  ]
+}

@@ -1,0 +1,230 @@
+{
+  "name": "android-device",
+  "description": "On-device runner for Android checks. Installs the given build, drives adb, uiautomator, screenshots, logcat, and perfetto, and returns measured values with the artifacts saved to disk. Never edits code.",
+  "mode": "subagent",
+  "profile": "executor",
+  "hidden": true,
+  "steps": null,
+  "rules": [
+    [
+      "*",
+      "*",
+      "deny"
+    ],
+    [
+      "read",
+      "*",
+      "allow"
+    ],
+    [
+      "read",
+      "*.env",
+      "ask"
+    ],
+    [
+      "read",
+      "*.env.*",
+      "ask"
+    ],
+    [
+      "read",
+      "*.env.example",
+      "allow"
+    ],
+    [
+      "grep",
+      "*",
+      "allow"
+    ],
+    [
+      "glob",
+      "*",
+      "allow"
+    ],
+    [
+      "list",
+      "*",
+      "allow"
+    ],
+    [
+      "codegraph_*",
+      "*",
+      "allow"
+    ],
+    [
+      "execute",
+      "*",
+      "allow"
+    ],
+    [
+      "edit",
+      "*",
+      "deny"
+    ],
+    [
+      "edit",
+      "@@OPENCODE_TMP@@/*",
+      "allow"
+    ],
+    [
+      "edit",
+      "@@DELIVERABLES@@/*",
+      "allow"
+    ],
+    [
+      "shell",
+      "*",
+      "ask"
+    ],
+    [
+      "shell",
+      "@@ANDROID_SDK@@/platform-tools/adb *",
+      "allow"
+    ],
+    [
+      "shell",
+      "$ADB *",
+      "allow"
+    ],
+    [
+      "shell",
+      "./gradlew *",
+      "allow"
+    ],
+    [
+      "shell",
+      "tail *",
+      "allow"
+    ],
+    [
+      "shell",
+      "mkdir *",
+      "allow"
+    ],
+    [
+      "shell",
+      "ls *",
+      "allow"
+    ],
+    [
+      "shell",
+      "sleep *",
+      "allow"
+    ],
+    [
+      "shell",
+      "@@ANDROID_SDK@@/build-tools/*/aapt *",
+      "allow"
+    ],
+    [
+      "shell",
+      "cat *",
+      "deny"
+    ],
+    [
+      "shell",
+      "head *",
+      "deny"
+    ],
+    [
+      "shell",
+      "rg *",
+      "deny"
+    ],
+    [
+      "shell",
+      "grep *",
+      "deny"
+    ],
+    [
+      "shell",
+      "find *",
+      "deny"
+    ],
+    [
+      "shell",
+      "sed *",
+      "deny"
+    ],
+    [
+      "shell",
+      "awk *",
+      "deny"
+    ],
+    [
+      "shell",
+      "set *",
+      "deny"
+    ],
+    [
+      "shell",
+      "git add *",
+      "deny"
+    ],
+    [
+      "shell",
+      "git commit *",
+      "deny"
+    ],
+    [
+      "shell",
+      "git push *",
+      "deny"
+    ],
+    [
+      "shell",
+      "git reset *",
+      "deny"
+    ],
+    [
+      "shell",
+      "git checkout *",
+      "deny"
+    ],
+    [
+      "shell",
+      "git switch *",
+      "deny"
+    ],
+    [
+      "shell",
+      "git restore *",
+      "deny"
+    ],
+    [
+      "shell",
+      "git clean *",
+      "deny"
+    ],
+    [
+      "shell",
+      "git stash *",
+      "deny"
+    ],
+    [
+      "shell",
+      "git rebase *",
+      "deny"
+    ],
+    [
+      "external_directory",
+      "@@OPENCODE_TMP@@/*",
+      "allow"
+    ],
+    [
+      "external_directory",
+      "@@OPENCODE_TOOL_OUTPUT@@/*",
+      "allow"
+    ],
+    [
+      "external_directory",
+      "@@ANDROID_SDK@@/*",
+      "allow"
+    ],
+    [
+      "external_directory",
+      "@@DELIVERABLES@@/*",
+      "allow"
+    ]
+  ]
+}

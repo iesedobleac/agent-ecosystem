@@ -1,0 +1,20 @@
+{
+  "core": {
+    "engram": {
+      "type": "local",
+      "command": [
+        "@@BIN_ENGRAM@@",
+        "mcp",
+        "--tools=agent"
+      ]
+    },
+    "codegraph": {
+      "type": "local",
+      "command": [
+        "@@BIN_CODEGRAPH@@",
+        "serve",
+        "--mcp"
+      ]
+    }
+  }
+}

@@ -1,0 +1,155 @@
+{
+  "name": "sdd-verify",
+  "description": "Independently verifies a spec RF by RF against implementation and current evidence, respecting optional testing; reports fulfilled, unfulfilled, or inconclusive without edits or repairs.",
+  "mode": "subagent",
+  "profile": "reviewer",
+  "hidden": false,
+  "steps": 30,
+  "rules": [
+    [
+      "*",
+      "*",
+      "deny"
+    ],
+    [
+      "read",
+      "*",
+      "allow"
+    ],
+    [
+      "read",
+      "*.env",
+      "ask"
+    ],
+    [
+      "read",
+      "*.env.*",
+      "ask"
+    ],
+    [
+      "read",
+      "*.env.example",
+      "allow"
+    ],
+    [
+      "grep",
+      "*",
+      "allow"
+    ],
+    [
+      "glob",
+      "*",
+      "allow"
+    ],
+    [
+      "list",
+      "*",
+      "allow"
+    ],
+    [
+      "codegraph_*",
+      "*",
+      "allow"
+    ],
+    [
+      "execute",
+      "*",
+      "allow"
+    ],
+    [
+      "shell",
+      "*",
+      "ask"
+    ],
+    [
+      "shell",
+      "git status *",
+      "allow"
+    ],
+    [
+      "shell",
+      "git diff *",
+      "allow"
+    ],
+    [
+      "shell",
+      "git log *",
+      "allow"
+    ],
+    [
+      "shell",
+      "git show *",
+      "allow"
+    ],
+    [
+      "shell",
+      "git add *",
+      "deny"
+    ],
+    [
+      "shell",
+      "git commit *",
+      "deny"
+    ],
+    [
+      "shell",
+      "git push *",
+      "deny"
+    ],
+    [
+      "shell",
+      "git reset *",
+      "deny"
+    ],
+    [
+      "shell",
+      "git checkout *",
+      "deny"
+    ],
+    [
+      "shell",
+      "git switch *",
+      "deny"
+    ],
+    [
+      "shell",
+      "git restore *",
+      "deny"
+    ],
+    [
+      "shell",
+      "git clean *",
+      "deny"
+    ],
+    [
+      "shell",
+      "git stash *",
+      "deny"
+    ],
+    [
+      "shell",
+      "git rebase *",
+      "deny"
+    ],
+    [
+      "external_directory",
+      "@@OPENCODE_TMP@@/*",
+      "allow"
+    ],
+    [
+      "external_directory",
+      "@@OPENCODE_TOOL_OUTPUT@@/*",
+      "allow"
+    ],
+    [
+      "external_directory",
+      "@@GRADLE_CACHES@@/*",
+      "allow"
+    ],
+    [
+      "external_directory",
+      "@@ANDROID_SDK@@/*",
+      "allow"
+    ]
+  ]
+}
