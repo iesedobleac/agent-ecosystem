@@ -10,20 +10,23 @@ import (
 	"github.com/iesedobleac/iesedoble-ai/internal/installer"
 )
 
-// logo is <IESEDOBLE-AI /> in a pixel font, like a self-closing tag.
+// logo is <IESEDOBLE^AI /> in a pixel font, like a self-closing tag, with AI
+// as a boxed exponent raised above the name.
 var logo = []string{
-	`  ▄ ▀█▀ █▀▀▀▀ ▄▀▀▀▀ █▀▀▀▀ █▀▀▀▄ ▄▀▀▀▄ █▀▀▀▄ █     █▀▀▀▀     ▄▀▀▀▄ ▀█▀    █ ▄`,
-	`▄▀   █  █▄▄▄  ▀▄▄▄  █▄▄▄  █   █ █   █ █▄▄▄▀ █     █▄▄▄  ▄▄▄ █▄▄▄█  █    █   ▀▄`,
-	` ▀▄  █  █         █ █     █   █ █   █ █   █ █     █         █   █  █   ▄▀  ▄▀`,
-	`    ▀▀▀ ▀▀▀▀▀ ▀▀▀▀  ▀▀▀▀▀ ▀▀▀▀   ▀▀▀  ▀▀▀▀  ▀▀▀▀▀ ▀▀▀▀▀     ▀   ▀ ▀▀▀  ▀`,
+	`                                                        ╭─────────╮`,
+	`                                                        │ ▄▀█ ▀█▀ │`,
+	`  ▄ ▀█▀ █▀▀▀▀ ▄▀▀▀▀ █▀▀▀▀ █▀▀▀▄ ▄▀▀▀▄ █▀▀▀▄ █     █▀▀▀▀ │ █▀█ ▄█▄ │   █ ▄`,
+	`▄▀   █  █▄▄▄  ▀▄▄▄  █▄▄▄  █   █ █   █ █▄▄▄▀ █     █▄▄▄  ╰─────────╯  █   ▀▄`,
+	` ▀▄  █  █         █ █     █   █ █   █ █   █ █     █                 ▄▀  ▄▀`,
+	`    ▀▀▀ ▀▀▀▀▀ ▀▀▀▀  ▀▀▀▀▀ ▀▀▀▀   ▀▀▀  ▀▀▀▀  ▀▀▀▀▀ ▀▀▀▀▀             ▀`,
 }
 
-// The logo's columns: the tag marks in grey, "IESEDOBLE-" with the gradient
-// and "AI" in green.
+// The logo's columns: the tag marks in grey, "IESEDOBLE" with the gradient
+// and the AI exponent in green.
 const (
 	nameStart = 4
-	nameEnd   = 59
-	aiEnd     = 69
+	nameEnd   = 55
+	aiEnd     = 67
 )
 
 // gradient runs left to right across the logo: blue, purple, cyan.
@@ -66,6 +69,7 @@ func header(width int) string {
 	}
 
 	var b strings.Builder
+	b.WriteString("\n\n") // breathing room above the logo
 	for _, line := range logo {
 		b.WriteString("  ")
 		for col, r := range []rune(line) {
@@ -74,8 +78,10 @@ func header(width int) string {
 				b.WriteRune(r)
 			case col >= nameStart && col < nameEnd:
 				b.WriteString(paint(colorAt(float64(col-nameStart)/float64(nameEnd-nameStart-1)), r))
-			case col >= nameEnd && col < aiEnd:
+			case col >= nameEnd && col < aiEnd && strings.ContainsRune("█▀▄", r):
 				b.WriteString(paint(green, r))
+			case col >= nameEnd && col < aiEnd: // the box around AI
+				b.WriteString(paint(mix(green, rgb{0x1A, 0x1B, 0x26}, 0.35), r))
 			default: // < and />
 				b.WriteString(subtle.Render(string(r)))
 			}
