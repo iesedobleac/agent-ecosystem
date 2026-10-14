@@ -1,146 +1,247 @@
-# agent-ecosystem
+<p align="center">
+  <img src="docs/images/menu.png" width="760" alt="The agent-ecosystem interactive installer">
+</p>
 
-Installs a set of agents, skills, rules and MCP servers for Spec-Driven Development (SDD) and
-Android work into the AI assistants you already use. One binary, an interactive menu, and the
-same sources rendered natively for each assistant.
+<h3 align="center">Fourteen agents, two skills and a memory for the AI assistants you already use.</h3>
 
-| Assistant | Status |
-|---|---|
-| OpenCode | Supported |
-| Claude Code | Supported |
-| Copilot CLI, Codex, Gemini CLI | Planned |
+<p align="center">
+  Spec-Driven Development and Android agents, installed natively into OpenCode and Claude Code<br>
+  from a single source, with one binary and one menu.
+</p>
 
-It never installs an assistant for you: it configures the ones you have.
+<p align="center">
+  <a href="https://github.com/iesedobleac/agent-ecosystem/actions/workflows/ci.yml"><img src="https://github.com/iesedobleac/agent-ecosystem/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/iesedobleac/agent-ecosystem/releases/latest"><img src="https://img.shields.io/github/v/release/iesedobleac/agent-ecosystem?color=7AA2F7" alt="Latest release"></a>
+  <img src="https://img.shields.io/github/go-mod/go-version/iesedobleac/agent-ecosystem?color=7DCFFF" alt="Go version">
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/iesedobleac/agent-ecosystem?color=BB9AF7" alt="MIT license"></a>
+</p>
 
-## Install
+<p align="center">
+  <a href="#-quick-start">Quick start</a> ·
+  <a href="#-what-you-get">What you get</a> ·
+  <a href="#-the-agents">The agents</a> ·
+  <a href="#-command-line">Command line</a> ·
+  <a href="#-how-it-treats-your-machine">Your machine</a> ·
+  <a href="#-development">Development</a>
+</p>
 
-**macOS (Homebrew)**
+---
+
+## ⚡ Quick start
 
 ```bash
 brew install --cask iesedobleac/tap/agent-ecosystem
+agent-ecosystem
 ```
 
-**macOS / Linux (script)**: uses Homebrew on macOS when available, otherwise downloads the
+Pick your assistants, the components and a model per role, review, install. That's it.
+
+<details>
+<summary><b>Other ways to install</b> (script, Windows, from source)</summary>
+
+<br>
+
+**macOS / Linux script**: uses Homebrew on macOS when it is there; otherwise downloads the
 binary from GitHub Releases and verifies its checksum.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/iesedobleac/agent-ecosystem/main/scripts/install.sh | bash
 ```
 
-**Windows (PowerShell)**: installs from source with Go until the binaries are signed.
+**Windows (PowerShell)**: builds from source with Go until the binaries are signed.
 
 ```powershell
 irm https://raw.githubusercontent.com/iesedobleac/agent-ecosystem/main/scripts/install.ps1 | iex
 ```
 
-**From source (any platform, Go 1.26+)**
+**From source** (any platform, Go 1.26+)
 
 ```bash
 go install github.com/iesedobleac/agent-ecosystem/cmd/agent-ecosystem@latest
 ```
 
-Then run:
+</details>
 
-```bash
-agent-ecosystem          # interactive installer
-agent-ecosystem doctor   # read-only health check
+## ✨ Why
+
+- **One source, native output.** Each agent is written once. The installer renders it in each
+  assistant's own format: OpenCode agents with per-agent permissions, Claude Code subagents with
+  tool lists.
+- **Your models, not ours.** It lists the models your assistant actually offers (OpenCode's from
+  your connected providers) and lets you choose one per role. Nothing is preselected that you
+  cannot run.
+- **Safe to run again.** Files you edited are backed up before they are replaced, your own
+  configuration is left alone, and `uninstall` removes exactly what was added.
+- **It configures, it doesn't take over.** It never installs an assistant or Node.js for you. It
+  checks what your selection needs and tells you, before writing a single file.
+
+## 🖥 A look inside
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/picker.png" alt="Choosing a model from the ones the assistant lists"></td>
+    <td width="50%"><img src="docs/images/review.png" alt="Review of the selection before installing"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Models</b>: listed from your assistant, filter as you type</td>
+    <td align="center"><b>Review</b>: everything that will be installed, at a glance</td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/images/install.png" alt="Install progress"></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><b>Install</b>: every step, with progress</td>
+  </tr>
+</table>
+
+## 🧩 Supported assistants
+
+| Assistant | Status | Installs into |
+|---|---|---|
+| **OpenCode** | ✅ Supported | `~/.config/opencode` |
+| **Claude Code** | ✅ Supported | `~/.claude` (or `$CLAUDE_CONFIG_DIR`) |
+| Copilot CLI, Codex, Gemini CLI | 🛣 Planned | |
+
+## 📦 What you get
+
+| | OpenCode | Claude Code |
+|---|---|---|
+| 🤖 **Agents** | 14 agents with per-agent permissions; orchestrators are primary agents | 14 subagents with tool lists; run an orchestrator with `claude --agent <name>` |
+| 📚 **Skills** | `sdd-workflow`, `skill-generator` | Same |
+| 📏 **Rules** | Managed block in `AGENTS.md` | Managed block in `CLAUDE.md` |
+| 🛡 **Safety** | Per-agent shell rules | Session deny rules for `git push`, `git reset --hard`, `git clean`, `git rebase` |
+| 🧠 **Memory** | [Engram](https://github.com/Gentleman-Programming/engram) MCP + `engram setup opencode` | Engram MCP + `engram setup claude-code` |
+| 🕸 **Code graph** | [CodeGraph](https://www.npmjs.com/package/@colbymchenry/codegraph) MCP | Same |
+| 🔔 **Plugin** | Context warning: a toast past 200k tokens, then every +100k | Not needed |
+
+Every component can be switched off in the menu or with `--without`.
+
+## 🤖 The agents
+
+### Spec-Driven Development
+
+`sdd-orchestrator` coordinates the flow and delegates each phase to its own agent. Phases run
+when you ask for them, and nothing is saved without your approval.
+
+```mermaid
+flowchart LR
+    subgraph setup [Project setup]
+        D[sdd-discovery<br/><sub>AGENTS.md</sub>]
+        C[sdd-constitution<br/><sub>docs/constitution.md</sub>]
+    end
+    S[sdd-spec<br/><sub>spec.md · EARS requirements</sub>]
+    Q[sdd-clarify<br/><sub>QA review of the spec</sub>]
+    P[sdd-plan<br/><sub>plan.md</sub>]
+    T[sdd-tasks<br/><sub>tasks.md</sub>]
+    A[sdd-apply<br/><sub>one task at a time</sub>]
+    V[sdd-verify<br/><sub>requirement by requirement</sub>]
+    setup --> S --> P --> T --> A --> V
+    S -.-> Q -.-> S
+    A -->|next task| A
 ```
 
-### Requirements
+### Android
 
-Before writing anything, the installer lists the tools your selection needs and their state,
-the way gentle-ai does:
+`android-orchestrator` handles small and medium Android tasks without SDD phases. Its four
+subagents also serve the SDD flow.
 
-| Tool | When it is needed | If it is missing |
+| Agent | Role |
+|---|---|
+| `android-explore` | Read-only explorer: maps files, symbols and impact, CodeGraph first |
+| `android-worker` | Implements closed, already-designed tasks within the allowed files |
+| `android-review` | Reviews a diff against its task and the project style; never edits |
+| `android-device` | Installs builds and drives `adb`, screenshots, logcat and perfetto |
+
+### Model roles
+
+| Role | Used by | Claude Code default |
 |---|---|---|
-| git | Always | The install stops |
-| OpenCode | OpenCode selected | The install stops; install it from [opencode.ai](https://opencode.ai/docs) |
-| Claude Code | Claude Code selected | Its configuration is prepared anyway |
-| Node.js 18+ and npm | CodeGraph selected | Warning with the install command for your platform |
-| Engram | Engram selected | Installed automatically (Homebrew, or its GitHub release) |
-| CodeGraph | CodeGraph selected | Installed automatically with npm |
-| Git Bash | Windows with OpenCode | Warning: the agents' shell commands need a POSIX shell |
+| **planner** | Orchestrators, exploration and planning agents | `opus` |
+| **executor** | `android-worker`, `android-device`, `sdd-apply` | `haiku` |
+| **reviewer** | `android-review`, `sdd-verify` | `sonnet` |
 
-It never installs Node.js or the assistants for you. Go is only needed to install from source
-(Windows).
+In the menu each role gets a model from the list your assistant offers: OpenCode's come from
+`opencode models` (only the providers you have connected); Claude Code's are `opus`, `sonnet`,
+`haiku`, `fable` and `inherit`. **Custom…** takes any other ID, such as a full Claude model ID.
 
-## What it installs
+## ⌨️ Command line
 
-| Part | OpenCode (`~/.config/opencode`) | Claude Code (`~/.claude`) |
-|---|---|---|
-| Agents | 14 agents with per-agent permissions; orchestrators are primary agents | 14 subagents with tool lists; run an orchestrator with `claude --agent <name>` |
-| Skills | `sdd-workflow`, `skill-generator` | Same |
-| Rules | Managed block in `AGENTS.md` | Managed block in `CLAUDE.md` |
-| Safety rules | Per-agent shell rules | Session deny rules: `git push`, `git reset --hard`, `git clean`, `git rebase` |
-| Plugin | Context warning: toast past 200k tokens of context, then every +100k | Not needed |
-| MCP servers | Engram and CodeGraph | Same |
-| Memory | `engram setup opencode` | `engram setup claude-code` |
-
-The agents:
-
-- **SDD flow:** `sdd-orchestrator` with `sdd-discovery`, `sdd-constitution`, `sdd-spec`,
-  `sdd-clarify`, `sdd-plan`, `sdd-tasks`, `sdd-apply`, `sdd-verify`.
-- **Android:** `android-orchestrator` with `android-explore`, `android-worker`,
-  `android-review`, `android-device` (these four also serve the SDD flow).
-
-Outside OpenCode, permissions are coarser: each agent gets a list of tools, and command-level
-limits come from the session deny rules and the agent's prompt.
-
-## Command line
-
-The menu covers everything; the same options work without it:
+The menu covers everything; the same options work without it.
 
 ```bash
-agent-ecosystem install --targets opencode,claude --dry-run
+agent-ecosystem install --targets opencode,claude --dry-run   # see what would change
 agent-ecosystem install --without android --claude-planner sonnet
-agent-ecosystem sync          # re-apply the last selection, e.g. after upgrading the binary
-agent-ecosystem uninstall     # remove everything it installed
+agent-ecosystem sync        # re-apply the last selection, e.g. after upgrading
+agent-ecosystem doctor      # read-only health check
+agent-ecosystem uninstall   # remove everything it installed
 ```
+
+<details>
+<summary><b>All install flags</b></summary>
+
+<br>
 
 | Flag | Effect |
 |---|---|
 | `--targets` | `opencode`, `claude` (default: the ones found on this machine) |
 | `--without` | Skip components: `sdd`, `android`, `skills`, `plugin`, `engram`, `codegraph` |
-| `--planner`, `--executor`, `--reviewer` | OpenCode models per profile |
-| `--claude-planner`, `--claude-executor`, `--claude-reviewer` | Claude Code models per profile (default `opus`, `haiku`, `sonnet`) |
+| `--planner`, `--executor`, `--reviewer` | OpenCode model per role |
+| `--claude-planner`, `--claude-executor`, `--claude-reviewer` | Claude Code model per role |
 | `--config-dir`, `--claude-dir` | Assistant config directories |
 | `--deliverables-dir`, `--android-sdk` | Paths the agents use |
 | `--skip-deps`, `--no-shell-profile`, `--no-git-bash`, `--dry-run` | Behaviour |
 
-Model profiles: **planner** for orchestrators, exploration and planning agents; **executor** for
-`android-worker`, `android-device` and `sdd-apply`; **reviewer** for `android-review` and
-`sdd-verify`.
+A model the assistant does not list produces a warning, and the install goes on.
 
-The menu lists the models each assistant offers: OpenCode's come from `opencode models` (only
-providers you have connected), Claude Code's are `opus`, `sonnet`, `haiku`, `fable` and `inherit`.
-"Custom…" takes any other model ID, such as a full Claude model ID. A default is only preselected
-when the assistant lists it; otherwise you choose. On the command line, a model the assistant
-does not list produces a warning and the install continues.
+</details>
 
-## How it behaves on your machine
+<details>
+<summary><b>What it checks before installing</b></summary>
 
-- **Safe re-runs.** A file you edited is copied to `~/.agent-ecosystem/backups/<date>/` before it
-  is replaced.
-- **Existing configuration is kept.** MCP servers with the same name are left untouched, rules go
-  in a marked block, and deny rules are only added.
-- **Comments in `opencode.jsonc` are lost.** The file is rewritten as plain JSON, after a backup.
-- **State.** `~/.agent-ecosystem/state.json` records what was installed and the selection, which
-  `sync` reuses and `uninstall` removes.
+<br>
 
-## Development
+| Tool | Needed when | If it is missing |
+|---|---|---|
+| git | Always | The install stops |
+| OpenCode | OpenCode selected | The install stops; get it from [opencode.ai](https://opencode.ai/docs) |
+| Claude Code | Claude Code selected | Its configuration is prepared anyway |
+| Node.js 18+ and npm | CodeGraph selected | A warning with the install command for your platform |
+| Engram | Engram selected | Installed for you (Homebrew, or its GitHub release) |
+| CodeGraph | CodeGraph selected | Installed for you with npm |
+| Git Bash | Windows with OpenCode | A warning: the agents' shell commands need a POSIX shell |
+
+</details>
+
+## 🏠 How it treats your machine
+
+- 💾 **Backups.** A file you edited is copied to `~/.agent-ecosystem/backups/<date>/` before it is
+  replaced.
+- 🤝 **Your configuration stays.** MCP servers with the same name are left untouched, rules go in a
+  marked block, and deny rules are only ever added.
+- 📝 **State.** `~/.agent-ecosystem/state.json` records what was installed and your selection;
+  `sync` reuses it and `uninstall` removes what it lists.
+- ⚠️ **`opencode.jsonc` comments are lost.** The file is rewritten as plain JSON, after a backup.
+
+## 🛠 Development
 
 ```bash
 go test ./...
 go run ./cmd/agent-ecosystem install --dry-run
 ```
 
-`assets/` is the single source, embedded in the binary:
+<details>
+<summary><b>How the code is organised</b></summary>
+
+<br>
+
+**`assets/`** is the single source, embedded in the binary.
 
 | Path | Contents |
 |---|---|
-| `assets/agents/<name>.json` | Description, mode, model profile, step limit and ordered permission rules |
+| `assets/agents/<name>.json` | Description, mode, model role, step limit and ordered permission rules |
 | `assets/agents/<name>.md` | The prompt |
-| `assets/skills/`, `assets/rules/rules.md`, `assets/mcp.json`, `assets/plugins/opencode/` | Skills, rules, MCP catalog, OpenCode plugins |
+| `assets/skills/`, `assets/rules/rules.md` | Skills and the rules block |
+| `assets/mcp.json`, `assets/plugins/opencode/` | MCP catalog and OpenCode plugins |
 
 Prompts, skills and rules are templates:
 
@@ -150,20 +251,38 @@ Prompts, skills and rules are templates:
   other assistant.
 - `@@PLACEHOLDERS@@` are machine paths resolved at install time.
 
-`internal/render` defines the tokens and each assistant's file format.
+**`internal/render`** defines the tokens and each assistant's file format.
 
-Releases: push a `v*` tag. GoReleaser builds the macOS and Linux binaries, publishes them with
-`checksums.txt`, and updates the cask in `iesedobleac/homebrew-tap` (secret
+**`internal/installer`** has one adapter per assistant (`opencode.go`, `claude.go`) behind the
+`Target` interface in `target.go`: detection, paths, requirements, models, install and uninstall.
+Adding an assistant means a new adapter and one entry in the `targets` list; its menu entry,
+flags and progress steps follow.
+
+**`internal/tui`** is the interactive menu.
+
+</details>
+
+<details>
+<summary><b>Releasing</b></summary>
+
+<br>
+
+Push a `v*` tag. GoReleaser builds the macOS and Linux binaries, publishes them with
+`checksums.txt`, and updates the cask in
+[`iesedobleac/homebrew-tap`](https://github.com/iesedobleac/homebrew-tap) (secret
 `HOMEBREW_TAP_GITHUB_TOKEN`).
 
-## Known limitations
+</details>
 
-- Windows is not tested end to end. Agent prompts assume a POSIX shell, so on Windows the
+## 🚧 Known limitations
+
+- **Windows** is not tested end to end. Agent prompts assume a POSIX shell, so on Windows the
   installer sets Git Bash as the OpenCode shell when it finds it.
-- The Claude Code output follows Claude Code's documented format but has not been run there yet.
-- With Claude models through GitHub Copilot in OpenCode, reaching a step limit fails with
-  "does not support assistant message prefill", which is why only the reviewer agents have one.
+- **Claude Code** loads the 14 agents and both skills (checked with Claude Code 2.1.287), but the
+  orchestrator flows have not been run there end to end yet.
+- **Claude models through GitHub Copilot in OpenCode** fail with "does not support assistant
+  message prefill" when they reach a step limit, which is why only the reviewer agents have one.
 
-## License
+## 📄 License
 
 [MIT](LICENSE)
