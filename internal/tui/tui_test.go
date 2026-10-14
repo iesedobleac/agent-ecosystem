@@ -136,3 +136,12 @@ func TestProgressSteps(t *testing.T) {
 		t.Errorf("running view:\n%s", view)
 	}
 }
+
+func TestHeaderFitsWidth(t *testing.T) {
+	if h := header(100); !strings.Contains(h, "███") || !strings.Contains(h, "E C O S Y S T E M") {
+		t.Errorf("wide header:\n%s", h)
+	}
+	if h := header(40); strings.Contains(h, "███") || !strings.Contains(h, "agent-ecosystem") {
+		t.Errorf("narrow header:\n%s", h)
+	}
+}

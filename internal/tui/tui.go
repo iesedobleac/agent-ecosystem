@@ -28,12 +28,6 @@ var (
 	box      = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(dim).Padding(1, 2)
 )
 
-const banner = `   _                    _
-  /_\  __ _ ___ _ _  __| |_   ___ __ ___ ____  _ __| |_ ___ _ __
- / _ \/ _' / -_) ' \|_ / _| / -_) _/ _ (_-< || (_-<  _/ -_) '  \
-/_/ \_\__, \___|_||_|  \__| \___\__\___/__/\_, /__/\__\___|_|_|_|
-      |___/                                |__/`
-
 type screen int
 
 const (
@@ -696,8 +690,7 @@ func help(keys string) string { return "\n" + subtle.Render(keys) }
 // View implements tea.Model.
 func (m Model) View() string {
 	var b strings.Builder
-	b.WriteString(title.Render(banner) + "\n")
-	b.WriteString(subtle.Render("  agent-ecosystem "+installer.Version+" · agents, skills and MCP for your AI assistants") + "\n\n")
+	b.WriteString(header(m.width) + "\n\n")
 	switch m.screen {
 	case scMenu:
 		for i, it := range menuItems {
