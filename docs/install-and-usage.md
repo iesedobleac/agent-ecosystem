@@ -217,22 +217,32 @@ On macOS, if you installed with the script's binary method, run the script again
 
 ## Coming from agent-ecosystem
 
-`iesedoble-ai` was called `agent-ecosystem` before v0.4.0. Install the new name and run `sync`:
+`iesedoble-ai` was called `agent-ecosystem` before v0.4.0.
+
+macOS: Homebrew moves the old cask to the new name. The new cask has to be trusted first:
 
 ```bash
-brew install --cask iesedobleac/tap/iesedoble-ai     # macOS
+brew update
+brew trust --cask iesedobleac/tap/iesedoble-ai
+brew upgrade --cask agent-ecosystem
 iesedoble-ai sync
 ```
+
+After the upgrade, `agent-ecosystem` is an alias of `iesedoble-ai` in Homebrew: do not run
+`brew uninstall --cask agent-ecosystem`, as it would uninstall `iesedoble-ai`.
+
+Windows:
 
 ```powershell
-go install github.com/iesedobleac/iesedoble-ai/cmd/iesedoble-ai@latest   # Windows
+go install github.com/iesedobleac/iesedoble-ai/cmd/iesedoble-ai@latest
 iesedoble-ai sync
 ```
 
-The first run moves `~/.agent-ecosystem` (state, backups and logs) to `~/.iesedoble-ai`, and
+Then delete the old `agent-ecosystem.exe` from `%USERPROFILE%\go\bin`.
+
+The first `sync` moves `~/.agent-ecosystem` (state, backups and logs) to `~/.iesedoble-ai`, and
 replaces the `agent-ecosystem` blocks in `AGENTS.md`, `CLAUDE.md` and your shell profile with the
-new ones, without duplicating them. Then remove the old command: `brew uninstall --cask
-agent-ecosystem` on macOS, or delete `agent-ecosystem.exe` from `%USERPROFILE%\go\bin` on Windows.
+new ones, without duplicating them.
 
 ## Check your install
 
