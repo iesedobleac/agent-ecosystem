@@ -36,6 +36,9 @@ agent-ecosystem
 
 Pick your assistants, the components and a model per role, review, install. That's it.
 
+📖 **[Install and usage guide](docs/install-and-usage.md)**: prerequisites, first run, using the
+agents, updating, uninstalling and troubleshooting.
+
 <details>
 <summary><b>Other ways to install</b> (script, from source)</summary>
 
