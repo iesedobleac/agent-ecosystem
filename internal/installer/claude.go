@@ -45,10 +45,10 @@ func (claudeCode) dir(r *run) string {
 	return filepath.Join(r.home, ".claude")
 }
 
-// configJSON is .claude.json; with a custom config dir (CLAUDE_CONFIG_DIR),
-// Claude Code keeps it inside that dir.
-func (c claudeCode) configJSON(r *run) string {
-	if dir := c.dir(r); dir != filepath.Join(r.home, ".claude") {
+// configJSON is the .claude.json of a config dir: with a custom one
+// (CLAUDE_CONFIG_DIR), Claude Code keeps it inside that dir.
+func (claudeCode) configJSON(r *run, dir string) string {
+	if dir != filepath.Join(r.home, ".claude") {
 		return filepath.Join(dir, ".claude.json")
 	}
 	return filepath.Join(r.home, ".claude.json")
@@ -82,17 +82,18 @@ func (claudeCode) knownModel(model string, available []string) bool {
 	return strings.HasPrefix(model, "claude-") || contains(available, model)
 }
 
-func (c claudeCode) cli(r *run, args ...string) error {
+// cli runs the claude command against the config dir dir.
+func (claudeCode) cli(dir string, args ...string) error {
 	cmd := exec.Command("claude", args...)
-	cmd.Env = append(os.Environ(), "CLAUDE_CONFIG_DIR="+c.dir(r))
+	cmd.Env = append(os.Environ(), "CLAUDE_CONFIG_DIR="+dir)
 	return cmd.Run()
 }
 
-func (c claudeCode) mcpExists(r *run, name string) bool {
+func (c claudeCode) mcpExists(r *run, dir, name string) bool {
 	if r.bins["claude"] != "" {
-		return c.cli(r, "mcp", "get", name) == nil
+		return c.cli(dir, "mcp", "get", name) == nil
 	}
-	config, err := readJSON(c.configJSON(r))
+	config, err := readJSON(c.configJSON(r, dir))
 	if err != nil {
 		return false
 	}
@@ -101,19 +102,19 @@ func (c claudeCode) mcpExists(r *run, name string) bool {
 	return ok
 }
 
-func (c claudeCode) mcpAdd(r *run, name string, entry map[string]any) error {
+func (c claudeCode) mcpAdd(r *run, dir, name string, entry map[string]any) error {
 	if r.opts.DryRun {
 		r.log.Info("[dry-run] Claude Code MCP " + name)
 		return nil
 	}
 	if r.bins["claude"] != "" {
 		data, _ := json.Marshal(entry)
-		if c.cli(r, "mcp", "add-json", "--scope", "user", name, string(data)) == nil {
+		if c.cli(dir, "mcp", "add-json", "--scope", "user", name, string(data)) == nil {
 			return nil
 		}
-		r.log.Warn("claude mcp add-json " + name + " failed; writing " + c.configJSON(r) + " instead")
+		r.log.Warn("claude mcp add-json " + name + " failed; writing " + c.configJSON(r, dir) + " instead")
 	}
-	file := c.configJSON(r)
+	file := c.configJSON(r, dir)
 	config, err := readJSON(file)
 	if err != nil {
 		return err
@@ -123,15 +124,15 @@ func (c claudeCode) mcpAdd(r *run, name string, entry map[string]any) error {
 	return r.writeJSON(file, config)
 }
 
-func (c claudeCode) mcpRemove(r *run, name string) error {
+func (c claudeCode) mcpRemove(r *run, dir, name string) error {
 	if r.opts.DryRun {
 		r.log.Info("[dry-run] remove Claude Code MCP " + name)
 		return nil
 	}
-	if r.bins["claude"] != "" && c.cli(r, "mcp", "remove", "--scope", "user", name) == nil {
+	if r.bins["claude"] != "" && c.cli(dir, "mcp", "remove", "--scope", "user", name) == nil {
 		return nil
 	}
-	file := c.configJSON(r)
+	file := c.configJSON(r, dir)
 	config, err := readJSON(file)
 	if err != nil {
 		return err
@@ -234,11 +235,11 @@ func (c claudeCode) install(r *run, src *sources, st *TargetState) error {
 	}
 	var added []string
 	for _, name := range sortedKeys(wanted) {
-		if !contains(st.MCP, name) && c.mcpExists(r, name) {
+		if !contains(st.MCP, name) && c.mcpExists(r, dir, name) {
 			r.log.Info("Claude Code: MCP " + name + " already configured; left as is")
 			continue
 		}
-		if err := c.mcpAdd(r, name, wanted[name].ClaudeEntry()); err != nil {
+		if err := c.mcpAdd(r, dir, name, wanted[name].ClaudeEntry()); err != nil {
 			return err
 		}
 		added = append(added, name)
@@ -247,7 +248,7 @@ func (c claudeCode) install(r *run, src *sources, st *TargetState) error {
 	for _, name := range st.MCP {
 		if _, ok := wanted[name]; ok {
 			owned = append(owned, name)
-		} else if err := c.mcpRemove(r, name); err != nil {
+		} else if err := c.mcpRemove(r, dir, name); err != nil {
 			return err
 		}
 	}
@@ -298,7 +299,7 @@ func (c claudeCode) uninstall(r *run, st *TargetState) error {
 		}
 	}
 	for _, name := range st.MCP {
-		if err := c.mcpRemove(r, name); err != nil {
+		if err := c.mcpRemove(r, dir, name); err != nil {
 			return err
 		}
 	}

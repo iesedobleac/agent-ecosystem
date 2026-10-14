@@ -309,3 +309,21 @@ func TestRequirements(t *testing.T) {
 		t.Errorf("install without OpenCode: %v", err)
 	}
 }
+
+// Uninstall removes MCP servers from the Claude dir recorded at install, even
+// when it is not passed again.
+func TestUninstallClaudeMCPFromRecordedDir(t *testing.T) {
+	home := t.TempDir()
+	opts := testOptions(home)
+	opts.Targets = []string{"claude"}
+	if _, err := Install(opts, testLogger{t}); err != nil {
+		t.Fatal(err)
+	}
+	if err := Uninstall(Options{Home: home}, testLogger{t}); err != nil {
+		t.Fatal(err)
+	}
+	config, _ := readJSON(filepath.Join(opts.ClaudeDir, ".claude.json"))
+	if servers, _ := config["mcpServers"].(map[string]any); len(servers) > 0 {
+		t.Errorf("MCP servers left behind: %v", servers)
+	}
+}
