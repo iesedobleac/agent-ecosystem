@@ -37,7 +37,7 @@ agent-ecosystem
 Pick your assistants, the components and a model per role, review, install. That's it.
 
 <details>
-<summary><b>Other ways to install</b> (script, Windows, from source)</summary>
+<summary><b>Other ways to install</b> (script, from source)</summary>
 
 <br>
 
@@ -48,13 +48,7 @@ binary from GitHub Releases and verifies its checksum.
 curl -fsSL https://raw.githubusercontent.com/iesedobleac/agent-ecosystem/main/scripts/install.sh | bash
 ```
 
-**Windows (PowerShell)**: builds from source with Go until the binaries are signed.
-
-```powershell
-irm https://raw.githubusercontent.com/iesedobleac/agent-ecosystem/main/scripts/install.ps1 | iex
-```
-
-**From source** (any platform, Go 1.26+)
+**From source** (Go 1.26+)
 
 ```bash
 go install github.com/iesedobleac/agent-ecosystem/cmd/agent-ecosystem@latest
@@ -100,7 +94,6 @@ go install github.com/iesedobleac/agent-ecosystem/cmd/agent-ecosystem@latest
 |---|---|---|
 | **OpenCode** | ✅ Supported | `~/.config/opencode` |
 | **Claude Code** | ✅ Supported | `~/.claude` (or `$CLAUDE_CONFIG_DIR`) |
-| Copilot CLI, Codex, Gemini CLI | 🛣 Planned | |
 
 ## 📦 What you get
 
@@ -164,6 +157,9 @@ In the menu each role gets a model from the list your assistant offers: OpenCode
 `opencode models` (only the providers you have connected); Claude Code's are `opus`, `sonnet`,
 `haiku`, `fable` and `inherit`. **Custom…** takes any other ID, such as a full Claude model ID.
 
+Only `android-review` and `sdd-verify` have a step limit: with Claude models through GitHub
+Copilot in OpenCode, reaching one fails with "does not support assistant message prefill".
+
 ## ⌨️ Command line
 
 The menu covers everything; the same options work without it.
@@ -189,7 +185,7 @@ agent-ecosystem uninstall   # remove everything it installed
 | `--claude-planner`, `--claude-executor`, `--claude-reviewer` | Claude Code model per role |
 | `--config-dir`, `--claude-dir` | Assistant config directories |
 | `--deliverables-dir`, `--android-sdk` | Paths the agents use |
-| `--skip-deps`, `--no-shell-profile`, `--no-git-bash`, `--dry-run` | Behaviour |
+| `--skip-deps`, `--no-shell-profile`, `--dry-run` | Behaviour |
 
 A model the assistant does not list produces a warning, and the install goes on.
 
@@ -208,7 +204,6 @@ A model the assistant does not list produces a warning, and the install goes on.
 | Node.js 18+ and npm | CodeGraph selected | A warning with the install command for your platform |
 | Engram | Engram selected | Installed for you (Homebrew, or its GitHub release) |
 | CodeGraph | CodeGraph selected | Installed for you with npm |
-| Git Bash | Windows with OpenCode | A warning: the agents' shell commands need a POSIX shell |
 
 </details>
 
@@ -273,15 +268,6 @@ Push a `v*` tag. GoReleaser builds the macOS and Linux binaries, publishes them 
 `HOMEBREW_TAP_GITHUB_TOKEN`).
 
 </details>
-
-## 🚧 Known limitations
-
-- **Windows** is not tested end to end. Agent prompts assume a POSIX shell, so on Windows the
-  installer sets Git Bash as the OpenCode shell when it finds it.
-- **Claude Code** loads the 14 agents and both skills (checked with Claude Code 2.1.287), but the
-  orchestrator flows have not been run there end to end yet.
-- **Claude models through GitHub Copilot in OpenCode** fail with "does not support assistant
-  message prefill" when they reach a step limit, which is why only the reviewer agents have one.
 
 ## 📄 License
 
