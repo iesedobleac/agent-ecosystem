@@ -29,10 +29,12 @@ func DetectTargets(opts Options) []string {
 }
 
 // Install installs or updates the selection for each target.
-func Install(opts Options, log Logger) (*Result, error) {
+func Install(opts Options, log Logger) (res *Result, err error) {
 	if len(opts.Targets) == 0 {
 		opts.Targets = DetectTargets(opts)
 	}
+	log, closeLog := openRunLog(opts, "install", log)
+	defer func() { closeLog(err) }()
 	for _, t := range opts.Targets {
 		if !contains(AllTargets, t) {
 			return nil, fmt.Errorf("unknown target %q (supported: %s)", t, strings.Join(AllTargets, ", "))
@@ -106,7 +108,7 @@ func Install(opts Options, log Logger) (*Result, error) {
 		p.Step(r.total, r.total, "Done")
 	}
 
-	res := &Result{Targets: opts.Targets}
+	res = &Result{Targets: opts.Targets}
 	for _, id := range opts.Targets {
 		res.NextSteps = append(res.NextSteps, targetByID(id).nextStep())
 	}
@@ -120,7 +122,9 @@ func Install(opts Options, log Logger) (*Result, error) {
 }
 
 // Uninstall removes what previous installs added, for opts.Targets or every installed target.
-func Uninstall(opts Options, log Logger) error {
+func Uninstall(opts Options, log Logger) (err error) {
+	log, closeLog := openRunLog(opts, "uninstall", log)
+	defer func() { closeLog(err) }()
 	r, err := newRun(opts, log)
 	if err != nil {
 		return err

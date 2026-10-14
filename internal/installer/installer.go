@@ -136,25 +136,29 @@ func newRun(opts Options, log Logger) (*run, error) {
 	if opts.DeliverablesDir == "" {
 		opts.DeliverablesDir = filepath.Join(home, "agent-deliverables")
 	}
-	if opts.Models == nil {
-		opts.Models = map[string]render.Models{}
-	}
+	opts.Models = withDefaultModels(opts.Models)
+	stamp := time.Now().UTC().Format("2006-01-02T15-04-05Z")
+	r := &run{opts: opts, log: log, home: home, stamp: stamp, bins: map[string]string{}, seen: map[string]bool{}}
+	r.backup = filepath.Join(r.stateDir(), "backups", stamp)
+	return r, nil
+}
+
+// withDefaultModels fills the models not chosen with each target's defaults.
+func withDefaultModels(chosen map[string]render.Models) map[string]render.Models {
+	out := map[string]render.Models{}
 	for t, defaults := range DefaultModels {
 		m := render.Models{}
 		for k, v := range defaults {
 			m[k] = v
 		}
-		for k, v := range opts.Models[t] {
+		for k, v := range chosen[t] {
 			if v != "" {
 				m[k] = v
 			}
 		}
-		opts.Models[t] = m
+		out[t] = m
 	}
-	stamp := time.Now().UTC().Format("2006-01-02T15-04-05Z")
-	r := &run{opts: opts, log: log, home: home, stamp: stamp, bins: map[string]string{}, seen: map[string]bool{}}
-	r.backup = filepath.Join(r.stateDir(), "backups", stamp)
-	return r, nil
+	return out
 }
 
 // ── Paths ────────────────────────────────────────────────────────────────────

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -481,5 +482,66 @@ func TestClaudeMCPReinstall(t *testing.T) {
 	servers, _ := config["mcpServers"].(map[string]any)
 	if servers["codegraph"] == nil || servers["engram"] == nil {
 		t.Errorf("MCP servers after reinstall: %v", servers)
+	}
+}
+
+func runLogs(t *testing.T, home string) []string {
+	t.Helper()
+	files, _ := filepath.Glob(filepath.Join(home, ".agent-ecosystem", "logs", "*.log"))
+	return files
+}
+
+func TestRunLog(t *testing.T) {
+	home := t.TempDir()
+	opts := testOptions(home)
+
+	opts.DryRun = true
+	if _, err := Install(opts, testLogger{t}); err != nil {
+		t.Fatal(err)
+	}
+	if logs := runLogs(t, home); len(logs) != 0 {
+		t.Fatalf("dry run wrote logs: %v", logs)
+	}
+
+	opts.DryRun = false
+	var warns []string
+	if _, err := Install(opts, warnLogger{&warns}); err != nil {
+		t.Fatal(err)
+	}
+	logs := runLogs(t, home)
+	if len(logs) != 1 || !strings.HasSuffix(logs[0], "-install.log") {
+		t.Fatalf("logs: %v", logs)
+	}
+	data, _ := os.ReadFile(logs[0])
+	for _, want := range []string{"agent-ecosystem dev install", `"sdd": true`, "step  0/", "ok    OpenCode:", "done  install finished"} {
+		if !strings.Contains(string(data), want) {
+			t.Errorf("log missing %q:\n%s", want, data)
+		}
+	}
+
+	// A failed run records the error.
+	if _, err := Install(Options{Home: home, Targets: []string{"nope"}}, testLogger{t}); err == nil {
+		t.Fatal("expected an error")
+	}
+	var failed string
+	for _, l := range runLogs(t, home) {
+		if data, _ := os.ReadFile(l); strings.Contains(string(data), "error unknown target") {
+			failed = l
+		}
+	}
+	if failed == "" {
+		t.Error("no log recorded the error")
+	}
+}
+
+func TestPruneLogs(t *testing.T) {
+	dir := t.TempDir()
+	for i := 0; i < keepLogs+5; i++ {
+		_ = os.WriteFile(filepath.Join(dir, fmt.Sprintf("2026-01-%02dT00-00-00Z-install.log", i+1)), nil, 0o644)
+	}
+	pruneLogs(dir)
+	files, _ := filepath.Glob(filepath.Join(dir, "*.log"))
+	if len(files) != keepLogs || !strings.Contains(files[0], "2026-01-06") {
+		t.Errorf("%d logs left, oldest %s", len(files), filepath.Base(files[0]))
 	}
 }

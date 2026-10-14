@@ -227,6 +227,8 @@ A model the assistant does not list produces a warning, and the install goes on.
   marked block, and deny rules are only ever added.
 - 📝 **State.** `~/.agent-ecosystem/state.json` records what was installed and your selection;
   `sync` reuses it and `uninstall` removes what it lists.
+- 🧾 **Logs.** Every install, sync and uninstall leaves a log in `~/.agent-ecosystem/logs/` (the
+  last 20 are kept).
 - ⚠️ **`opencode.jsonc` comments are lost.** The file is rewritten as plain JSON, after a backup.
 
 ## 🛠 Development

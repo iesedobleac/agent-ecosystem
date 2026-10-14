@@ -255,6 +255,10 @@ Engram's setup adds it; the installer removes it unless **Subagent monitor** is 
 A tool marked `✗` is missing: install it with the hint shown next to it and run again. **Dry run**
 still works, to see what would change.
 
+**Something failed and the message is gone.**
+Every install, sync and uninstall writes a log to `~/.agent-ecosystem/logs/`, with your selection,
+each step and every warning; the path is shown at the end of the run. Dry runs write nothing.
+
 **A file I changed was replaced.**
 It was backed up first. Backups are in `~/.agent-ecosystem/backups/<date>/`, with the same path
 as the original.
@@ -269,6 +273,7 @@ folder.
 |---|---|
 | Install record and last selection | `~/.agent-ecosystem/state.json` |
 | Backups | `~/.agent-ecosystem/backups/` |
+| Logs of each install, sync and uninstall (the last 20) | `~/.agent-ecosystem/logs/` |
 | OpenCode files | `~/.config/opencode` (or `--config-dir`) |
 | Claude Code files | `~/.claude`, or `$CLAUDE_CONFIG_DIR` (or `--claude-dir`) |
 | Agent deliverables | `~/agent-deliverables` (or `--deliverables-dir`) |
