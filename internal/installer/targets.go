@@ -17,10 +17,15 @@ import (
 
 // ── OpenCode ─────────────────────────────────────────────────────────────────
 
+// targetSteps is how many progress steps each target's install reports.
+var targetSteps = map[string]int{"opencode": 4, "claude": 5}
+
 func (r *run) installOpenCode(src *sources, st *TargetState) error {
 	dir := r.opencodeConfigDir()
 	values := r.values("opencode")
+	r.step("OpenCode: memory")
 	r.runEngramSetup("opencode")
+	r.step("OpenCode: agents, skills and plugin")
 
 	files := map[string]string{}
 	for _, a := range src.agents {
@@ -59,6 +64,7 @@ func (r *run) installOpenCode(src *sources, st *TargetState) error {
 	r.pruneInstalled(dir, "agents", "skills", "plugins")
 	r.log.OK(fmt.Sprintf("OpenCode: %d files in %s", len(st.Files), dir))
 
+	r.step("OpenCode: rules")
 	rules, err := r.rules("opencode", values)
 	if err != nil {
 		return err
@@ -68,6 +74,7 @@ func (r *run) installOpenCode(src *sources, st *TargetState) error {
 	}
 	r.log.OK("OpenCode: rules in " + filepath.Join(dir, "AGENTS.md"))
 
+	r.step("OpenCode: config and MCP servers")
 	file := filepath.Join(dir, "opencode.json")
 	if _, err := os.Stat(filepath.Join(dir, "opencode.jsonc")); err == nil {
 		file = filepath.Join(dir, "opencode.jsonc")
@@ -254,9 +261,11 @@ func (r *run) claudeMCPRemove(name string) error {
 func (r *run) installClaude(src *sources, st *TargetState) error {
 	dir := r.claudeDir()
 	values := r.values("claude")
+	r.step("Claude Code: memory")
 	if r.bins["claude"] != "" {
 		r.runEngramSetup("claude-code", "CLAUDE_CONFIG_DIR="+dir)
 	}
+	r.step("Claude Code: agents and skills")
 	_, serverNames, err := r.servers(values)
 	if err != nil {
 		return err
@@ -282,6 +291,7 @@ func (r *run) installClaude(src *sources, st *TargetState) error {
 	r.pruneInstalled(dir, "agents", "skills")
 	r.log.OK(fmt.Sprintf("Claude Code: %d files in %s", len(st.Files), dir))
 
+	r.step("Claude Code: rules")
 	rules, err := r.rules("claude", values)
 	if err != nil {
 		return err
@@ -291,6 +301,7 @@ func (r *run) installClaude(src *sources, st *TargetState) error {
 	}
 	r.log.OK("Claude Code: rules in " + filepath.Join(dir, "CLAUDE.md"))
 
+	r.step("Claude Code: session deny rules")
 	settingsFile := filepath.Join(dir, "settings.json")
 	settings, err := readJSON(settingsFile)
 	if err != nil {
@@ -328,6 +339,7 @@ func (r *run) installClaude(src *sources, st *TargetState) error {
 	}
 	r.log.OK("Claude Code: session deny rules " + listOr(addedDeny, "already present"))
 
+	r.step("Claude Code: MCP servers")
 	wanted, _, err := r.servers(values)
 	if err != nil {
 		return err

@@ -53,10 +53,18 @@ func Install(opts Options, log Logger) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Steps: models, tools, files, each target's own steps, shell profile, state.
+	r.total = 5
+	for _, t := range opts.Targets {
+		r.total += targetSteps[t]
+	}
+	r.step("Checking models")
 	r.checkModels()
+	r.step("Installing tools")
 	if err := r.ensureDependencies(opts.Targets); err != nil {
 		return nil, err
 	}
+	r.step("Preparing files")
 	src, err := r.loadSources()
 	if err != nil {
 		return nil, err
@@ -85,6 +93,7 @@ func Install(opts Options, log Logger) (*Result, error) {
 		st.Version, st.Installed = Version, r.stamp
 		state.Targets[t] = st
 	}
+	r.step("Shell profile")
 	profile, err := r.installProfile()
 	if err != nil {
 		return nil, err
@@ -92,10 +101,14 @@ func Install(opts Options, log Logger) (*Result, error) {
 	if profile != "" {
 		state.Profile = profile
 	}
+	r.step("Saving state")
 	selection := r.opts
 	state.Selection = &selection
 	if err := r.writeState(state); err != nil {
 		return nil, err
+	}
+	if p, ok := log.(Progress); ok {
+		p.Step(r.total, r.total, "Done")
 	}
 
 	res := &Result{Targets: opts.Targets}

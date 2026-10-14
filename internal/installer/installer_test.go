@@ -28,6 +28,29 @@ func (warnLogger) Info(string)     {}
 func (warnLogger) OK(string)       {}
 func (l warnLogger) Warn(s string) { *l.warns = append(*l.warns, s) }
 
+type stepLogger struct {
+	nopLogger
+	steps *[][2]int
+}
+
+func (l stepLogger) Step(done, total int, _ string) { *l.steps = append(*l.steps, [2]int{done, total}) }
+
+func TestProgress(t *testing.T) {
+	var steps [][2]int
+	if _, err := Install(testOptions(t.TempDir()), stepLogger{steps: &steps}); err != nil {
+		t.Fatal(err)
+	}
+	total := 5 + targetSteps["opencode"] + targetSteps["claude"]
+	if len(steps) != total+1 {
+		t.Fatalf("%d steps reported, want %d: %v", len(steps), total+1, steps)
+	}
+	for i, s := range steps {
+		if s != [2]int{i, total} {
+			t.Errorf("step %d reported as %v", i, s)
+		}
+	}
+}
+
 func TestCheckModels(t *testing.T) {
 	saved := listModels
 	defer func() { listModels = saved }()

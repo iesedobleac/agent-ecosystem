@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -136,7 +137,11 @@ var menuItems = []struct {
 	{actQuit, "Quit", ""},
 }
 
-type logLine struct{ kind, text string }
+// logLine is a log message, or with kind "step" an install step starting.
+type logLine struct {
+	kind, text  string
+	done, total int
+}
 
 type reqsMsg []installer.Requirement
 
@@ -178,6 +183,8 @@ type Model struct {
 	reqs       []installer.Requirement
 	reqButton  int
 	spin       spinner.Model
+	bar        progress.Model
+	step       logLine // last install step reported
 	logs       []logLine
 	logCh      chan logLine
 	res        *installer.Result
@@ -233,6 +240,7 @@ func New() Model {
 	m.pickInput.Width = 50
 	m.spin = spinner.New()
 	m.spin.Spinner = spinner.Dot
+	m.bar = newBar()
 	return m
 }
 
@@ -435,9 +443,18 @@ func (m Model) visibleModels() []int {
 
 type chanLogger chan logLine
 
-func (c chanLogger) Info(s string) { c <- logLine{"info", s} }
-func (c chanLogger) OK(s string)   { c <- logLine{"ok", s} }
-func (c chanLogger) Warn(s string) { c <- logLine{"warn", s} }
+func (c chanLogger) Info(s string) { c <- logLine{kind: "info", text: s} }
+func (c chanLogger) OK(s string)   { c <- logLine{kind: "ok", text: s} }
+func (c chanLogger) Warn(s string) { c <- logLine{kind: "warn", text: s} }
+
+// Step implements installer.Progress.
+func (c chanLogger) Step(done, total int, label string) {
+	c <- logLine{kind: "step", text: label, done: done, total: total}
+}
+
+func newBar() progress.Model {
+	return progress.New(progress.WithGradient(string(accent), string(okColor)), progress.WithWidth(40))
+}
 
 func waitLog(ch chan logLine) tea.Cmd {
 	return func() tea.Msg {
@@ -450,7 +467,7 @@ func waitLog(ch chan logLine) tea.Cmd {
 }
 
 func (m Model) start(act action, opts installer.Options) (Model, tea.Cmd) {
-	m.screen, m.act, m.logs = scRunning, act, nil
+	m.screen, m.act, m.logs, m.step, m.bar = scRunning, act, nil, logLine{}, newBar()
 	m.logCh = make(chan logLine, 256)
 	ch := m.logCh
 	run := func() tea.Msg {
@@ -485,10 +502,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
+		m.bar.Width = max(20, min(60, msg.Width-16))
 		return m, nil
 	case logLine:
+		if msg.kind == "step" {
+			m.step = msg
+			return m, tea.Batch(m.bar.SetPercent(float64(msg.done)/float64(max(msg.total, 1))), waitLog(m.logCh))
+		}
 		m.logs = append(m.logs, msg)
 		return m, waitLog(m.logCh)
+	case progress.FrameMsg:
+		bar, cmd := m.bar.Update(msg)
+		m.bar = bar.(progress.Model)
+		return m, cmd
 	case reqsMsg:
 		m.screen, m.reqs, m.reqButton = scRequirements, msg, 0
 		if m.blocked() {
@@ -723,15 +749,7 @@ func (m Model) View() string {
 			b.WriteString(help("↑/↓ move · enter choose · esc back"))
 		}
 	case scReview:
-		opts := m.options()
-		var lines []string
-		lines = append(lines, "Assistants:  "+joinLabels(opts.Targets))
-		lines = append(lines, "Components:  "+strings.Join(m.components.labelsChecked(), ", "))
-		for _, t := range opts.Targets {
-			md := opts.Models[t]
-			lines = append(lines, fmt.Sprintf("Models %-6s %s · %s · %s", installer.TargetLabels[t]+":", md["planner"], md["executor"], md["reviewer"]))
-		}
-		b.WriteString(title.Render("Review") + subtle.Render("  (4/4)") + "\n\n" + box.Render(strings.Join(lines, "\n")) + "\n\n")
+		b.WriteString(title.Render("Review") + subtle.Render("  (4/4)") + "\n\n" + box.Render(m.reviewView()) + "\n\n")
 		buttons := []string{"Install", "Dry run", "Cancel"}
 		for i, btn := range buttons {
 			if i == m.review {
@@ -773,7 +791,13 @@ func (m Model) View() string {
 		}
 		b.WriteString("\n" + help("←/→ choose · enter confirm · esc back"))
 	case scRunning:
-		b.WriteString(m.spin.View() + " Working…\n\n" + m.logView(14))
+		if m.step.total == 0 {
+			b.WriteString(m.spin.View() + " Working…\n\n" + m.logView(14))
+			break
+		}
+		b.WriteString(title.Render("Installing") + "\n\n")
+		b.WriteString(m.bar.View() + subtle.Render(fmt.Sprintf("  %d/%d", m.step.done, m.step.total)) + "\n")
+		b.WriteString(m.spin.View() + " " + m.step.text + "\n\n" + m.logView(12))
 	case scDone:
 		switch {
 		case m.err != nil:
@@ -861,22 +885,63 @@ func (m Model) logView(max int) string {
 	return b.String()
 }
 
-func (c checklist) labelsChecked() []string {
-	var out []string
-	for _, it := range c.items {
-		if it.checked {
-			out = append(out, it.label)
+// reviewView summarizes the selection in sections: assistants, components and models.
+func (m Model) reviewView() string {
+	opts := m.options()
+	section := lipgloss.NewStyle().Bold(true)
+	var b strings.Builder
+
+	b.WriteString(section.Render("Assistants") + "\n")
+	for _, t := range opts.Targets {
+		b.WriteString("  " + okStyle.Render("✓") + " " + installer.TargetLabels[t] + "\n")
+	}
+
+	// Components in two columns: chosen ones ticked, the rest dimmed.
+	b.WriteString("\n" + section.Render("Components") + "\n")
+	width := 0
+	for _, it := range m.components.items {
+		width = max(width, len(it.label))
+	}
+	half := (len(m.components.items) + 1) / 2
+	for r := 0; r < half; r++ {
+		line := "  " + componentCell(m.components.items[r], width)
+		if r+half < len(m.components.items) {
+			line += "    " + componentCell(m.components.items[r+half], width)
+		}
+		b.WriteString(strings.TrimRight(line, " ") + "\n")
+	}
+
+	// Models as a table: one row per assistant, one column per profile.
+	profiles := []string{"planner", "executor", "reviewer"}
+	widths := map[string]int{}
+	labelW := 0
+	for _, t := range opts.Targets {
+		labelW = max(labelW, len(installer.TargetLabels[t]))
+		for _, p := range profiles {
+			widths[p] = max(widths[p], len(p), len(opts.Models[t][p]))
 		}
 	}
-	return out
+	b.WriteString("\n" + section.Render("Models") + "\n")
+	head := fmt.Sprintf("  %-*s", labelW, "")
+	for _, p := range profiles {
+		head += fmt.Sprintf("  %-*s", widths[p], p)
+	}
+	b.WriteString(subtle.Render(strings.TrimRight(head, " ")) + "\n")
+	for _, t := range opts.Targets {
+		row := fmt.Sprintf("  %-*s", labelW, installer.TargetLabels[t])
+		for _, p := range profiles {
+			row += fmt.Sprintf("  %-*s", widths[p], opts.Models[t][p])
+		}
+		b.WriteString(strings.TrimRight(row, " ") + "\n")
+	}
+	return strings.TrimRight(b.String(), "\n")
 }
 
-func joinLabels(targets []string) string {
-	var out []string
-	for _, t := range targets {
-		out = append(out, installer.TargetLabels[t])
+func componentCell(it item, width int) string {
+	if it.checked {
+		return okStyle.Render("✓") + " " + fmt.Sprintf("%-*s", width, it.label)
 	}
-	return strings.Join(out, ", ")
+	return subtle.Render("– " + fmt.Sprintf("%-*s", width, it.label))
 }
 
 // Run starts the interactive installer.

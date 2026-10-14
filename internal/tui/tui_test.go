@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -99,5 +100,39 @@ func TestPickerWithoutList(t *testing.T) {
 	m = press(t, m, typed("p/m"), enter)
 	if v := m.options().Models["opencode"]["planner"]; v != "p/m" {
 		t.Errorf("planner %q", v)
+	}
+}
+
+func TestReviewView(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	m := New()
+	for i := range m.targets.items {
+		m.targets.items[i].checked = true
+	}
+	for i := range m.components.items {
+		m.components.items[i].checked = m.components.items[i].key != "codegraph"
+	}
+	for i, k := range m.modelKeys {
+		m.values[i] = installer.DefaultModels[k[0]][k[1]]
+	}
+	view := m.reviewView()
+	for _, want := range []string{"Assistants", "Components", "Models", "– CodeGraph", "planner", "github-copilot/claude-opus-5.5"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("review view missing %q:\n%s", want, view)
+		}
+	}
+}
+
+func TestProgressSteps(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	m := New()
+	m.screen, m.logCh = scRunning, make(chan logLine, 1)
+	next, _ := m.Update(logLine{kind: "step", text: "OpenCode: rules", done: 3, total: 14})
+	m = next.(Model)
+	if m.step.done != 3 || len(m.logs) != 0 {
+		t.Fatalf("step %+v, logs %v", m.step, m.logs)
+	}
+	if view := m.View(); !strings.Contains(view, "3/14") || !strings.Contains(view, "OpenCode: rules") {
+		t.Errorf("running view:\n%s", view)
 	}
 }

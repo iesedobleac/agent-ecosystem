@@ -86,6 +86,12 @@ type Logger interface {
 	Warn(msg string)
 }
 
+// Progress is implemented by loggers that show how far an install has got.
+// Step is called as each step starts, with the number of steps already done.
+type Progress interface {
+	Step(done, total int, label string)
+}
+
 // Result summarizes an install.
 type Result struct {
 	Targets   []string
@@ -119,6 +125,16 @@ type run struct {
 	backup string
 	// Files already backed up, or created by this run, are not backed up again.
 	seen map[string]bool
+	// Install steps done and expected, for loggers that show progress.
+	steps, total int
+}
+
+// step reports that the next install step starts.
+func (r *run) step(label string) {
+	if p, ok := r.log.(Progress); ok {
+		p.Step(min(r.steps, r.total), r.total, label)
+	}
+	r.steps++
 }
 
 func newRun(opts Options, log Logger) (*run, error) {
