@@ -88,9 +88,10 @@ func fail(err error) {
 
 func install(args []string) {
 	fs := flag.NewFlagSet("install", flag.ExitOnError)
-	var targets, without listFlag
+	var targets, without, with listFlag
 	fs.Var(&targets, "targets", "assistants: "+strings.Join(installer.AllTargets, ", ")+" (default: detected)")
 	fs.Var(&without, "without", "skip components: sdd, android, skills, plugin, engram, codegraph")
+	fs.Var(&with, "with", "add components that are off by default: subagent-monitor")
 	models := map[string]render.Models{}
 	for _, t := range installer.AllTargets {
 		models[t] = render.Models{}
@@ -112,6 +113,14 @@ func install(args []string) {
 	_ = fs.Parse(args)
 
 	comps := installer.DefaultComponents()
+	for _, w := range with {
+		switch w {
+		case "subagent-monitor":
+			comps.SubagentMonitor = true
+		default:
+			fail(fmt.Errorf("unknown component %q for --with", w))
+		}
+	}
 	for _, w := range without {
 		switch w {
 		case "sdd":

@@ -217,6 +217,7 @@ func New() Model {
 		{"plugin", "Context warning", "OpenCode toast when a session passes 200k tokens", comps.Plugin},
 		{"engram", "Engram memory", "persistent memory MCP and plugin", comps.Engram},
 		{"codegraph", "CodeGraph", "code graph MCP", comps.CodeGraph},
+		{"subagent-monitor", "Subagent monitor", "OpenCode subagent statusline that Engram adds; off removes it", comps.SubagentMonitor},
 	}
 
 	models := map[string]render.Models{}
@@ -263,7 +264,8 @@ func (m Model) options() installer.Options {
 		comps[k] = true
 	}
 	opts.Components = installer.Components{SDD: comps["sdd"], Android: comps["android"], Skills: comps["skills"],
-		Plugin: comps["plugin"], Engram: comps["engram"], CodeGraph: comps["codegraph"]}
+		Plugin: comps["plugin"], Engram: comps["engram"], CodeGraph: comps["codegraph"],
+		SubagentMonitor: comps["subagent-monitor"]}
 	for i, k := range m.modelKeys {
 		if opts.Models[k[0]] == nil {
 			opts.Models[k[0]] = render.Models{}

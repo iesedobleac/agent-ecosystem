@@ -40,9 +40,12 @@ type Components struct {
 	Plugin    bool `json:"plugin"`    // OpenCode context-warning plugin
 	Engram    bool `json:"engram"`    // memory MCP and plugin
 	CodeGraph bool `json:"codegraph"` // code graph MCP
+	// SubagentMonitor keeps the OpenCode subagent statusline that `engram setup`
+	// adds to tui.json; off removes it.
+	SubagentMonitor bool `json:"subagentMonitor"`
 }
 
-// DefaultComponents selects everything.
+// DefaultComponents selects everything but the subagent monitor.
 func DefaultComponents() Components {
 	return Components{SDD: true, Android: true, Skills: true, Plugin: true, Engram: true, CodeGraph: true}
 }

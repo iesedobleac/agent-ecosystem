@@ -110,7 +110,9 @@ go install github.com/iesedobleac/agent-ecosystem/cmd/agent-ecosystem@latest
 | 🕸 **Code graph** | [CodeGraph](https://www.npmjs.com/package/@colbymchenry/codegraph) MCP | Same |
 | 🔔 **Plugin** | Context warning: a toast past 200k tokens, then every +100k | Not needed |
 
-Every component can be switched off in the menu or with `--without`.
+Every component can be switched off in the menu or with `--without`. Engram's setup also adds an
+OpenCode subagent statusline to `tui.json`; the installer removes it unless you select
+**Subagent monitor** (`--with subagent-monitor`).
 
 ## 🤖 The agents
 
@@ -184,6 +186,7 @@ agent-ecosystem uninstall   # remove everything it installed
 |---|---|
 | `--targets` | `opencode`, `claude` (default: the ones found on this machine) |
 | `--without` | Skip components: `sdd`, `android`, `skills`, `plugin`, `engram`, `codegraph` |
+| `--with` | Add components that are off by default: `subagent-monitor` |
 | `--planner`, `--executor`, `--reviewer` | OpenCode model per role |
 | `--claude-planner`, `--claude-executor`, `--claude-reviewer` | Claude Code model per role |
 | `--config-dir`, `--claude-dir` | Assistant config directories |

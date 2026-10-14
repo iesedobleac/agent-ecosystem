@@ -379,3 +379,52 @@ func TestOpenCodeModelsReason(t *testing.T) {
 		}
 	}
 }
+
+func TestSubagentMonitor(t *testing.T) {
+	home := t.TempDir()
+	opts := testOptions(home)
+	opts.Targets = []string{"opencode"}
+	tui := filepath.Join(opts.ConfigDir, "tui.json")
+	if err := os.MkdirAll(opts.ConfigDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	original := `{"theme": "tokyonight", "plugin": ["my-plugin", "opencode-subagent-statusline"]}`
+	if err := os.WriteFile(tui, []byte(original), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Selected: left as Engram installs it.
+	opts.Components.SubagentMonitor = true
+	if _, err := Install(opts, testLogger{t}); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(tui); string(data) != original {
+		t.Errorf("tui.json changed with the monitor selected: %s", data)
+	}
+
+	// Off (the default): removed, the rest kept, the original backed up.
+	opts.Components.SubagentMonitor = false
+	res, err := Install(opts, testLogger{t})
+	if err != nil {
+		t.Fatal(err)
+	}
+	config, _ := readJSON(tui)
+	if plugins, _ := config["plugin"].([]any); len(plugins) != 1 || plugins[0] != "my-plugin" || config["theme"] != "tokyonight" {
+		t.Errorf("tui.json after removal: %v", config)
+	}
+	backup := filepath.Join(res.BackupDir, filepath.FromSlash(strings.TrimPrefix(strings.Replace(slash(tui), ":", "", 1), "/")))
+	if data, err := os.ReadFile(backup); err != nil || string(data) != original {
+		t.Errorf("backup %s: %q, %v", backup, data, err)
+	}
+
+	// Only entry: the plugin list goes away.
+	if err := os.WriteFile(tui, []byte(`{"plugin": ["opencode-subagent-statusline"]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Install(opts, testLogger{t}); err != nil {
+		t.Fatal(err)
+	}
+	if config, _ := readJSON(tui); config["plugin"] != nil {
+		t.Errorf("empty plugin list left: %v", config)
+	}
+}

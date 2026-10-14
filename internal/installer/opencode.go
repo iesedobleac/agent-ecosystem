@@ -165,6 +165,9 @@ func (o openCode) install(r *run, src *sources, st *TargetState) error {
 	values := r.values(o)
 	r.step("OpenCode: memory")
 	r.runEngramSetup("opencode")
+	if err := o.syncSubagentMonitor(r); err != nil {
+		return err
+	}
 	r.step("OpenCode: agents, skills and plugin")
 
 	files := map[string]string{}
@@ -286,6 +289,54 @@ func (o openCode) install(r *run, src *sources, st *TargetState) error {
 	}
 	st.Dir = dir
 	r.log.OK("OpenCode: MCP servers " + listOr(added, "unchanged"))
+	return nil
+}
+
+// subagentMonitor is the OpenCode TUI plugin `engram setup opencode` adds.
+const subagentMonitor = "opencode-subagent-statusline"
+
+// syncSubagentMonitor removes the subagent monitor from tui.json unless it is
+// selected. `engram setup` adds it again on every run, so this runs after it.
+func (o openCode) syncSubagentMonitor(r *run) error {
+	if r.opts.Components.SubagentMonitor {
+		return nil
+	}
+	dir := o.configDir(r)
+	file := filepath.Join(dir, "tui.json")
+	if _, err := os.Stat(filepath.Join(dir, "tui.jsonc")); err == nil {
+		file = filepath.Join(dir, "tui.jsonc")
+	}
+	raw, err := os.ReadFile(file)
+	if err != nil {
+		return nil
+	}
+	config, err := readJSON(file)
+	if err != nil {
+		return err
+	}
+	plugins, _ := config["plugin"].([]any)
+	var kept []any
+	for _, p := range plugins {
+		if p != subagentMonitor {
+			kept = append(kept, p)
+		}
+	}
+	if len(kept) == len(plugins) {
+		return nil
+	}
+	if len(kept) == 0 {
+		delete(config, "plugin")
+	} else {
+		config["plugin"] = kept
+	}
+	if hasComments(string(raw)) {
+		r.log.Warn(filepath.Base(file) + " is rewritten as plain JSON; comments are not kept (backup in " + r.backup + ")")
+	}
+	r.backupFile(file)
+	if err := r.writeJSON(file, config); err != nil {
+		return err
+	}
+	r.log.OK("OpenCode: subagent monitor removed from " + file)
 	return nil
 }
 

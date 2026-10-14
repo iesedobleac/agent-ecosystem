@@ -80,7 +80,7 @@ Choose **Install or update** and go through the four steps. Move with `↑`/`↓
 `space`, continue with `enter`, go back with `esc`.
 
 1. **Assistants.** The ones found on this machine are marked as detected and preselected.
-2. **Components.** All are selected by default:
+2. **Components.** All but the subagent monitor are selected by default:
 
    | Component | What it adds |
    |---|---|
@@ -90,6 +90,7 @@ Choose **Install or update** and go through the four steps. Move with `↑`/`↓
    | Context warning | OpenCode toast when a session passes 200k tokens |
    | Engram memory | Persistent memory MCP server and plugin |
    | CodeGraph | Code graph MCP server |
+   | Subagent monitor | Keeps the OpenCode subagent statusline that Engram's setup adds to `tui.json`. Off by default: the installer removes it, after backing up `tui.json` |
 
 3. **Models.** One model per role and assistant: **planner** (orchestrators and planning),
    **executor** (implementation and device work) and **reviewer** (review and verification).
@@ -113,6 +114,7 @@ The same install, from the command line:
 agent-ecosystem install                       # detected assistants, everything, default models
 agent-ecosystem install --dry-run             # show what would change
 agent-ecosystem install --targets claude --without android,codegraph
+agent-ecosystem install --with subagent-monitor
 agent-ecosystem install --planner openai/gpt-5.5 --claude-reviewer opus
 ```
 
