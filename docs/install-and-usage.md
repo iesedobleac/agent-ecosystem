@@ -2,7 +2,8 @@
 
 ← [Back to README](../README.md)
 
-This guide covers macOS, on Apple Silicon and Intel.
+This guide covers macOS (Apple Silicon and Intel) and Windows. Commands are the same on both unless
+a section says otherwise; on Windows, run them in PowerShell.
 
 - [Before you start](#before-you-start)
 - [Install](#install)
@@ -17,6 +18,8 @@ This guide covers macOS, on Apple Silicon and Intel.
 
 ## Before you start
 
+### macOS
+
 You need:
 
 - **git**. If it is missing, install the Xcode command line tools with `xcode-select --install`,
@@ -28,9 +31,25 @@ You need:
 
 [Homebrew](https://brew.sh) is recommended. With it, the installer also installs Engram for you.
 
+### Windows
+
+Windows installs from source, so you need Go:
+
+```powershell
+winget install Git.Git
+winget install GoLang.Go
+winget install OpenJS.NodeJS.LTS   # only if you want CodeGraph
+```
+
+Git for Windows also brings Git Bash, which the agents' shell commands need. Install at least one
+assistant too: [OpenCode](https://opencode.ai/docs) or
+[Claude Code](https://docs.claude.com/en/docs/claude-code/setup).
+
+Open a new terminal afterwards, so the new `PATH` is loaded.
+
 ## Install
 
-### Homebrew (recommended)
+### macOS: Homebrew (recommended)
 
 ```bash
 brew install --cask iesedobleac/tap/agent-ecosystem
@@ -39,7 +58,7 @@ brew install --cask iesedobleac/tap/agent-ecosystem
 The binary is not notarized by Apple; the cask removes the quarantine flag on install, so macOS
 runs it without a warning.
 
-### Install script
+### macOS: install script
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/iesedobleac/agent-ecosystem/main/scripts/install.sh | bash
@@ -56,9 +75,19 @@ The binary goes to `/usr/local/bin` when it is writable, otherwise to `~/.local/
 another folder with `--dir <folder>`. If that folder is not in your `PATH`, the script tells you
 the line to add.
 
+### Windows: install script
+
+```powershell
+irm https://raw.githubusercontent.com/iesedobleac/agent-ecosystem/main/scripts/install.ps1 | iex
+```
+
+The script checks git and Go, then builds and installs the binary with `go install`. If Go's
+binary folder (`%USERPROFILE%\go\bin`) is not in your `PATH`, it prints the command to add it;
+run it and open a new terminal.
+
 ### From source
 
-With Go 1.26 or later:
+With Go 1.26 or later, on either system:
 
 ```bash
 go install github.com/iesedobleac/agent-ecosystem/cmd/agent-ecosystem@latest
@@ -105,6 +134,13 @@ installed for you (Engram and CodeGraph), `!` is missing but optional, and `✗`
 until you install it.
 
 At the end you get the next steps for each assistant.
+
+On Windows, Engram is downloaded from its GitHub release to `%USERPROFILE%\bin`. If the installer
+warns that this folder is not in your `PATH`, add it and open a new terminal:
+
+```powershell
+[Environment]::SetEnvironmentVariable('Path', $env:Path + ";$env:USERPROFILE\bin", 'User')
+```
 
 ### Without the menu
 
@@ -158,18 +194,29 @@ codegraph init
 
 ## Keep it up to date
 
+macOS:
+
 ```bash
 brew upgrade --cask iesedobleac/tap/agent-ecosystem
+agent-ecosystem sync
+```
+
+Windows:
+
+```powershell
+go install github.com/iesedobleac/agent-ecosystem/cmd/agent-ecosystem@latest
 agent-ecosystem sync
 ```
 
 `sync` re-applies your last selection with the new version. Files you edited are backed up
 before they are replaced.
 
-If you installed with the script's binary method, run the script again instead of
-`brew upgrade`. With `go install`, run the same `go install` command again.
+On macOS, if you installed with the script's binary method, run the script again instead of
+`brew upgrade`. Restart OpenCode afterwards (`opencode service restart`).
 
 ## Check your install
+
+On macOS:
 
 ```bash
 agent-ecosystem doctor
@@ -180,6 +227,8 @@ edited by hand.
 
 ## Uninstall
 
+On macOS:
+
 ```bash
 agent-ecosystem uninstall
 brew uninstall --cask agent-ecosystem
@@ -187,14 +236,20 @@ brew uninstall --cask agent-ecosystem
 
 `uninstall` removes what it added: agents, skills, the rules block in `AGENTS.md` / `CLAUDE.md`,
 its MCP servers and the Claude Code deny rules, and with the last assistant also the line it added
-to your shell profile. Engram, CodeGraph and the assistants stay installed. To remove a single assistant, pass `--targets opencode` or
-`--targets claude`; add `--dry-run` to see what would be removed.
+to your shell profile. Engram, CodeGraph and the assistants stay installed. To remove a single
+assistant, pass `--targets opencode` or `--targets claude`; add `--dry-run` to see what would be
+removed.
 
 ## Troubleshooting
 
 **The models step shows "choose a model" for OpenCode, or no models at all.**
 OpenCode only lists the models of connected providers. Connect one in OpenCode with `/connect`
-and run `agent-ecosystem` again, or use **Custom…** and type the model ID.
+and run `agent-ecosystem` again, or use **Custom…** and type the model ID. When the models cannot
+be listed, the menu and `agent-ecosystem install` show why, with OpenCode's own error.
+
+**An OpenCode subagent statusline still shows up.**
+Engram's setup adds it; the installer removes it unless **Subagent monitor** is selected. Run
+`agent-ecosystem sync`, then `opencode service restart`, and check with `opencode plugin list`.
 
 **The install stops at "Required tools".**
 A tool marked `✗` is missing: install it with the hint shown next to it and run again. **Dry run**
@@ -208,7 +263,7 @@ as the original.
 The installer rewrites that file as plain JSON. The original, with comments, is in the backups
 folder.
 
-**Where things are**
+**Where things are** (on Windows, `~` is your user folder, `%USERPROFILE%`)
 
 | What | Where |
 |---|---|

@@ -40,7 +40,7 @@ Pick your assistants, the components and a model per role, review, install. That
 agents, updating, uninstalling and troubleshooting.
 
 <details>
-<summary><b>Other ways to install</b> (script, from source)</summary>
+<summary><b>Other ways to install</b> (script, Windows, from source)</summary>
 
 <br>
 
@@ -49,6 +49,12 @@ binary from GitHub Releases and verifies its checksum.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/iesedobleac/agent-ecosystem/main/scripts/install.sh | bash
+```
+
+**Windows (PowerShell)**: checks git and Go, then builds and installs with `go install`.
+
+```powershell
+irm https://raw.githubusercontent.com/iesedobleac/agent-ecosystem/main/scripts/install.ps1 | iex
 ```
 
 **From source** (Go 1.26+)
