@@ -91,13 +91,11 @@ func install(args []string) {
 	var targets, without listFlag
 	fs.Var(&targets, "targets", "assistants: "+strings.Join(installer.AllTargets, ", ")+" (default: detected)")
 	fs.Var(&without, "without", "skip components: sdd, android, skills, plugin, engram, codegraph")
-	models := map[string]render.Models{"opencode": {}, "claude": {}}
-	for _, t := range []string{"opencode", "claude"} {
+	models := map[string]render.Models{}
+	for _, t := range installer.AllTargets {
+		models[t] = render.Models{}
 		for _, p := range []string{"planner", "executor", "reviewer"} {
-			name := p
-			if t == "claude" {
-				name = "claude-" + p
-			}
+			name := installer.ModelFlagPrefix(t) + p
 			target, profile := t, p
 			fs.Func(name, fmt.Sprintf("%s %s model (default %s)", installer.TargetLabels[t], p, installer.DefaultModels[t][p]),
 				func(v string) error { models[target][profile] = v; return nil })

@@ -149,33 +149,9 @@ func Requirements(opts Options) []Requirement {
 		reqs = append(reqs, r)
 	}
 
-	for _, t := range opts.Targets {
-		switch t {
-		case "opencode":
-			r := Requirement{Name: "OpenCode", Purpose: "selected assistant"}
-			if v, ok := version("opencode", "--version"); ok {
-				r.Detail = v
-			} else {
-				r.Status, r.Hint = Blocking, "install it from https://opencode.ai/docs and run again"
-			}
-			reqs = append(reqs, r)
-			if runtime.GOOS == "windows" && !opts.NoGitBash {
-				gb := Requirement{Name: "Git Bash", Purpose: "the agents' shell commands need a POSIX shell"}
-				if p := gitBash(); p != "" {
-					gb.Detail = p
-				} else {
-					gb.Status, gb.Hint = Optional, "winget install Git.Git"
-				}
-				reqs = append(reqs, gb)
-			}
-		case "claude":
-			r := Requirement{Name: "Claude Code", Purpose: "selected assistant"}
-			if v, ok := version("claude", "--version"); ok {
-				r.Detail = v
-			} else {
-				r.Status, r.Hint = Optional, "its configuration is prepared anyway; install it from https://docs.claude.com/en/docs/claude-code/setup"
-			}
-			reqs = append(reqs, r)
+	for _, id := range opts.Targets {
+		if t := targetByID(id); t != nil {
+			reqs = append(reqs, t.requirements(opts)...)
 		}
 	}
 	return reqs
@@ -204,12 +180,15 @@ func gitBash() string {
 // checkRequirements is replaced in tests, which run without the assistants installed.
 var checkRequirements = Requirements
 
-func (r *run) ensureDependencies(targets []string) error {
+func (r *run) ensureDependencies(ids []string) error {
 	if which("git") == "" {
 		return fmt.Errorf("git is required")
 	}
-	for _, name := range []string{"opencode", "codegraph", "engram", "claude"} {
+	for _, name := range []string{"codegraph", "engram"} {
 		r.bins[name] = which(name)
+	}
+	for _, t := range targets {
+		r.bins[t.binary()] = which(t.binary())
 	}
 	if r.opts.SkipDeps {
 		return nil
@@ -250,10 +229,9 @@ func (r *run) ensureDependencies(targets []string) error {
 			r.log.Warn(name + " is not available; install it manually")
 		}
 	}
-	for _, t := range targets {
-		bin := map[string]string{"opencode": "opencode", "claude": "claude"}[t]
-		if r.bins[bin] == "" {
-			r.log.Warn(TargetLabels[t] + " not found: its configuration is prepared, install it to use it")
+	for _, id := range ids {
+		if t := targetByID(id); r.bins[t.binary()] == "" {
+			r.log.Warn(t.label() + " not found: its configuration is prepared, install it to use it")
 		}
 	}
 	return nil

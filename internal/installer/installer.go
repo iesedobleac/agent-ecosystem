@@ -25,22 +25,6 @@ import (
 // Version is set at build time.
 var Version = "dev"
 
-// AllTargets are the supported assistants, in display order.
-var AllTargets = []string{"opencode", "claude"}
-
-// TargetLabels are human names for the targets.
-var TargetLabels = map[string]string{"opencode": "OpenCode", "claude": "Claude Code"}
-
-// DefaultModels per target and profile.
-var DefaultModels = map[string]render.Models{
-	"opencode": {"planner": "github-copilot/claude-opus-5.5", "executor": "github-copilot/claude-haiku-5.5", "reviewer": "github-copilot/gpt-5.6-terra"},
-	"claude":   {"planner": "opus", "executor": "haiku", "reviewer": "sonnet"},
-}
-
-// Session-wide deny rules for assistants without per-agent shell permissions.
-var claudeDeny = []string{"Bash(git push)", "Bash(git push *)", "Bash(git reset --hard)", "Bash(git reset --hard *)",
-	"Bash(git clean *)", "Bash(git rebase *)"}
-
 const (
 	markStart   = "<!-- agent-ecosystem:start -->"
 	markEnd     = "<!-- agent-ecosystem:end -->"
@@ -197,49 +181,6 @@ func command(name string, args ...string) (string, error) {
 	return strings.TrimSpace(string(out)), err
 }
 
-func (r *run) opencodePath(name string) string {
-	if which("opencode") == "" {
-		return ""
-	}
-	out, err := command("opencode", "debug", "paths", name)
-	if err != nil || out == "" || strings.Contains(out, "\n") {
-		return ""
-	}
-	return out
-}
-
-func (r *run) opencodeConfigDir() string {
-	if r.opts.ConfigDir != "" {
-		return filepath.Clean(expandHome(r.opts.ConfigDir, r.home))
-	}
-	if p := r.opencodePath("config"); p != "" {
-		return p
-	}
-	base := os.Getenv("XDG_CONFIG_HOME")
-	if base == "" {
-		base = filepath.Join(r.home, ".config")
-	}
-	return filepath.Join(base, "opencode")
-}
-
-func (r *run) claudeDir() string {
-	if r.opts.ClaudeDir != "" {
-		return filepath.Clean(expandHome(r.opts.ClaudeDir, r.home))
-	}
-	if d := os.Getenv("CLAUDE_CONFIG_DIR"); d != "" {
-		return d
-	}
-	return filepath.Join(r.home, ".claude")
-}
-
-// With a custom config dir (CLAUDE_CONFIG_DIR), Claude Code keeps .claude.json inside it.
-func (r *run) claudeJSON() string {
-	if dir := r.claudeDir(); dir != filepath.Join(r.home, ".claude") {
-		return filepath.Join(dir, ".claude.json")
-	}
-	return filepath.Join(r.home, ".claude.json")
-}
-
 func (r *run) androidSDK() string {
 	if r.opts.AndroidSDK != "" {
 		return expandHome(r.opts.AndroidSDK, r.home)
@@ -262,42 +203,13 @@ func (r *run) androidSDK() string {
 	return filepath.Join(r.home, "Android/Sdk")
 }
 
-func (r *run) tmpDir(target string) string {
-	dir := ""
-	if target == "opencode" {
-		dir = r.opencodePath("tmp")
-	}
-	if dir == "" {
-		name := "agent-ecosystem"
-		if target == "opencode" {
-			name = "opencode"
-		}
-		dir = filepath.Join(os.TempDir(), name)
-	}
-	_ = os.MkdirAll(dir, 0o755)
-	if real, err := filepath.EvalSymlinks(dir); err == nil {
-		return real
-	}
-	return dir
-}
-
-func (r *run) values(target string) map[string]string {
+// values fill the placeholders of the files rendered for a target.
+func (r *run) values(t Target) map[string]string {
 	gradle := os.Getenv("GRADLE_USER_HOME")
 	if gradle == "" {
 		gradle = filepath.Join(r.home, ".gradle")
 	}
-	data, skills := r.claudeDir(), filepath.Join(r.claudeDir(), "skills")
-	if target == "opencode" {
-		data = r.opencodePath("data")
-		if data == "" {
-			base := os.Getenv("XDG_DATA_HOME")
-			if base == "" {
-				base = filepath.Join(r.home, ".local/share")
-			}
-			data = filepath.Join(base, "opencode")
-		}
-		skills = filepath.Join(r.opencodeConfigDir(), "skills")
-	}
+	dirs := t.dirs(r)
 	bin := func(name string) string {
 		// Bare names survive Node version switches (nvm); Windows needs the .cmd/.exe path.
 		if runtime.GOOS == "windows" && r.bins[name] != "" {
@@ -307,12 +219,12 @@ func (r *run) values(target string) map[string]string {
 	}
 	deliverables, _ := filepath.Abs(expandHome(r.opts.DeliverablesDir, r.home))
 	return map[string]string{
-		"OPENCODE_TMP":         slash(r.tmpDir(target)),
-		"OPENCODE_TOOL_OUTPUT": slash(filepath.Join(data, "tool-output")),
+		"OPENCODE_TMP":         slash(dirs.tmp),
+		"OPENCODE_TOOL_OUTPUT": slash(filepath.Join(dirs.data, "tool-output")),
 		"DELIVERABLES":         slash(deliverables),
 		"ANDROID_SDK":          slash(r.androidSDK()),
 		"GRADLE_CACHES":        slash(filepath.Join(gradle, "caches")),
-		"SKILLS_DIR":           slash(skills),
+		"SKILLS_DIR":           slash(dirs.skills),
 		"BIN_ENGRAM":           bin("engram"),
 		"BIN_CODEGRAPH":        bin("codegraph"),
 	}

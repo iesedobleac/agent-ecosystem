@@ -35,12 +35,32 @@ type stepLogger struct {
 
 func (l stepLogger) Step(done, total int, _ string) { *l.steps = append(*l.steps, [2]int{done, total}) }
 
+func TestTargetRegistry(t *testing.T) {
+	if strings.Join(AllTargets, ",") != "opencode,claude" {
+		t.Errorf("AllTargets: %v", AllTargets)
+	}
+	for _, tg := range targets {
+		id := tg.id()
+		if targetByID(id) == nil || TargetLabels[id] == "" || tg.binary() == "" || tg.steps() <= 0 {
+			t.Errorf("%s: incomplete adapter", id)
+		}
+		for _, p := range []string{"planner", "executor", "reviewer"} {
+			if DefaultModels[id][p] == "" {
+				t.Errorf("%s: no default %s model", id, p)
+			}
+		}
+	}
+	if targetByID("nope") != nil {
+		t.Error("unknown target resolved")
+	}
+}
+
 func TestProgress(t *testing.T) {
 	var steps [][2]int
 	if _, err := Install(testOptions(t.TempDir()), stepLogger{steps: &steps}); err != nil {
 		t.Fatal(err)
 	}
-	total := 5 + targetSteps["opencode"] + targetSteps["claude"]
+	total := 5 + openCode{}.steps() + claudeCode{}.steps()
 	if len(steps) != total+1 {
 		t.Fatalf("%d steps reported, want %d: %v", len(steps), total+1, steps)
 	}

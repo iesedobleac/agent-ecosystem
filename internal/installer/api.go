@@ -9,21 +9,21 @@ import (
 	"strings"
 )
 
-// DetectTargets returns the assistants found on this machine (OpenCode if none).
+// DetectTargets returns the assistants found on this machine (the first one if none).
 func DetectTargets(opts Options) []string {
+	fallback := []string{targets[0].id()}
 	r, err := newRun(opts, nopLogger{})
 	if err != nil {
-		return []string{"opencode"}
+		return fallback
 	}
 	var found []string
-	if _, err := os.Stat(r.opencodeConfigDir()); which("opencode") != "" || err == nil {
-		found = append(found, "opencode")
-	}
-	if _, err := os.Stat(r.claudeDir()); which("claude") != "" || err == nil {
-		found = append(found, "claude")
+	for _, t := range targets {
+		if t.detected(r) {
+			found = append(found, t.id())
+		}
 	}
 	if len(found) == 0 {
-		return []string{"opencode"}
+		return fallback
 	}
 	return found
 }
@@ -55,8 +55,8 @@ func Install(opts Options, log Logger) (*Result, error) {
 	}
 	// Steps: models, tools, files, each target's own steps, shell profile, state.
 	r.total = 5
-	for _, t := range opts.Targets {
-		r.total += targetSteps[t]
+	for _, id := range opts.Targets {
+		r.total += targetByID(id).steps()
 	}
 	r.step("Checking models")
 	r.checkModels()
@@ -76,22 +76,17 @@ func Install(opts Options, log Logger) (*Result, error) {
 		}
 	}
 	state := r.readState()
-	for _, t := range opts.Targets {
-		st := state.Targets[t]
+	for _, id := range opts.Targets {
+		t := targetByID(id)
+		st := state.Targets[id]
 		if st == nil {
 			st = &TargetState{}
 		}
-		switch t {
-		case "opencode":
-			err = r.installOpenCode(src, st)
-		case "claude":
-			err = r.installClaude(src, st)
-		}
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", TargetLabels[t], err)
+		if err := t.install(r, src, st); err != nil {
+			return nil, fmt.Errorf("%s: %w", t.label(), err)
 		}
 		st.Version, st.Installed = Version, r.stamp
-		state.Targets[t] = st
+		state.Targets[id] = st
 	}
 	r.step("Shell profile")
 	profile, err := r.installProfile()
@@ -112,11 +107,8 @@ func Install(opts Options, log Logger) (*Result, error) {
 	}
 
 	res := &Result{Targets: opts.Targets}
-	if contains(opts.Targets, "opencode") {
-		res.NextSteps = append(res.NextSteps, "OpenCode: restart it (and `opencode service restart` from a new terminal), connect your provider with /connect, and pick sdd-orchestrator or android-orchestrator.")
-	}
-	if contains(opts.Targets, "claude") {
-		res.NextSteps = append(res.NextSteps, "Claude Code: start an orchestrator with `claude --agent sdd-orchestrator` or `claude --agent android-orchestrator`.")
+	for _, id := range opts.Targets {
+		res.NextSteps = append(res.NextSteps, targetByID(id).nextStep())
 	}
 	if r.opts.Components.CodeGraph {
 		res.NextSteps = append(res.NextSteps, "Index each repository once: codegraph init (in the repository root).")
@@ -133,33 +125,31 @@ func Uninstall(opts Options, log Logger) error {
 	if err != nil {
 		return err
 	}
-	for _, name := range []string{"claude"} {
-		r.bins[name] = which(name)
+	for _, t := range targets {
+		r.bins[t.binary()] = which(t.binary())
 	}
 	state := r.readState()
-	targets := opts.Targets
-	if len(targets) == 0 {
-		targets = sortedKeys(state.Targets)
+	ids := opts.Targets
+	if len(ids) == 0 {
+		ids = sortedKeys(state.Targets)
 	}
-	if len(targets) == 0 {
+	if len(ids) == 0 {
 		return fmt.Errorf("nothing to uninstall")
 	}
-	for _, t := range targets {
-		st := state.Targets[t]
+	for _, id := range ids {
+		t := targetByID(id)
+		if t == nil {
+			return fmt.Errorf("unknown target %q (supported: %s)", id, strings.Join(AllTargets, ", "))
+		}
+		st := state.Targets[id]
 		if st == nil {
-			log.Warn(TargetLabels[t] + " is not installed")
+			log.Warn(t.label() + " is not installed")
 			continue
 		}
-		switch t {
-		case "opencode":
-			err = r.uninstallOpenCode(st)
-		case "claude":
-			err = r.uninstallClaude(st)
-		}
-		if err != nil {
+		if err := t.uninstall(r, st); err != nil {
 			return err
 		}
-		delete(state.Targets, t)
+		delete(state.Targets, id)
 	}
 	if len(state.Targets) == 0 {
 		if err := r.removeProfile(state.Profile); err != nil {
@@ -199,12 +189,12 @@ func Doctor(opts Options, log Logger) bool {
 	default:
 		log.OK("State: " + r.stateFile())
 	}
-	targets := sortedKeys(state.Targets)
+	installed := sortedKeys(state.Targets)
 	comps := DefaultComponents()
 	if state.Selection != nil {
 		comps = state.Selection.Components
 	}
-	for _, req := range Requirements(Options{Targets: targets, Components: comps}) {
+	for _, req := range Requirements(Options{Targets: installed, Components: comps}) {
 		switch req.Status {
 		case Present:
 			log.OK(req.Name + " " + req.Detail)
@@ -215,7 +205,7 @@ func Doctor(opts Options, log Logger) bool {
 			ok = ok && req.Status != Blocking
 		}
 	}
-	for _, t := range targets {
+	for _, t := range installed {
 		st := state.Targets[t]
 		missing, changed := 0, 0
 		for rel, hash := range st.Files {
