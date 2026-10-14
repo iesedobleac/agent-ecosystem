@@ -10,15 +10,21 @@ import (
 	"github.com/iesedobleac/iesedoble-ai/internal/installer"
 )
 
-// logo is "IESEDOBLE" in block letters; the subtitle below adds "AI".
+// logo is <IESEDOBLE-AI /> in a pixel font, like a self-closing tag.
 var logo = []string{
-	`██╗███████╗███████╗███████╗██████╗  ██████╗ ██████╗ ██╗     ███████╗`,
-	`██║██╔════╝██╔════╝██╔════╝██╔══██╗██╔═══██╗██╔══██╗██║     ██╔════╝`,
-	`██║█████╗  ███████╗█████╗  ██║  ██║██║   ██║██████╔╝██║     █████╗  `,
-	`██║██╔══╝  ╚════██║██╔══╝  ██║  ██║██║   ██║██╔══██╗██║     ██╔══╝  `,
-	`██║███████╗███████║███████╗██████╔╝╚██████╔╝██████╔╝███████╗███████╗`,
-	`╚═╝╚══════╝╚══════╝╚══════╝╚═════╝  ╚═════╝ ╚═════╝ ╚══════╝╚══════╝`,
+	`  ▄ ▀█▀ █▀▀▀▀ ▄▀▀▀▀ █▀▀▀▀ █▀▀▀▄ ▄▀▀▀▄ █▀▀▀▄ █     █▀▀▀▀     ▄▀▀▀▄ ▀█▀    █ ▄`,
+	`▄▀   █  █▄▄▄  ▀▄▄▄  █▄▄▄  █   █ █   █ █▄▄▄▀ █     █▄▄▄  ▄▄▄ █▄▄▄█  █    █   ▀▄`,
+	` ▀▄  █  █         █ █     █   █ █   █ █   █ █     █         █   █  █   ▄▀  ▄▀`,
+	`    ▀▀▀ ▀▀▀▀▀ ▀▀▀▀  ▀▀▀▀▀ ▀▀▀▀   ▀▀▀  ▀▀▀▀  ▀▀▀▀▀ ▀▀▀▀▀     ▀   ▀ ▀▀▀  ▀`,
 }
+
+// The logo's columns: the tag marks in grey, "IESEDOBLE-" with the gradient
+// and "AI" in green.
+const (
+	nameStart = 4
+	nameEnd   = 59
+	aiEnd     = 69
+)
 
 // gradient runs left to right across the logo: blue, purple, cyan.
 var gradient = []rgb{{0x7A, 0xA2, 0xF7}, {0xBB, 0x9A, 0xF7}, {0x7D, 0xCF, 0xFF}}
@@ -38,46 +44,47 @@ func colorAt(t float64) rgb {
 	return mix(gradient[i], gradient[i+1], seg-float64(i))
 }
 
+var green = rgb{0x9E, 0xCE, 0x6A}
+
+func paint(c rgb, r rune) string {
+	return lipgloss.NewStyle().Foreground(lipgloss.Color(c.hex())).Render(string(r))
+}
+
 // header is the banner, sized to the terminal width (0 when not known yet).
 func header(width int) string {
 	version := installer.Version
 	if version != "" && version[0] >= '0' && version[0] <= '9' {
 		version = "v" + version
 	}
-	tagline := subtle.Render("agents, skills and MCP for your AI assistants")
-	logoWidth := utf8.RuneCountInString(logo[0])
+	tagline := "agents, skills and MCP for your AI assistants"
+	logoWidth := 0
+	for _, line := range logo {
+		logoWidth = max(logoWidth, utf8.RuneCountInString(line))
+	}
 	if width != 0 && width < logoWidth+4 {
-		return title.Render("iesedoble-ai") + " " + subtle.Render(version) + "\n" + tagline
+		return title.Render("iesedoble-ai") + " " + subtle.Render(version) + "\n" + subtle.Render(tagline)
 	}
 
 	var b strings.Builder
 	for _, line := range logo {
 		b.WriteString("  ")
-		col := 0
-		for _, r := range line {
-			c := colorAt(float64(col) / float64(logoWidth-1))
+		for col, r := range []rune(line) {
 			switch {
 			case r == ' ':
 				b.WriteRune(r)
-			case r == '█':
-				b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color(c.hex())).Render(string(r)))
-			default: // the box-drawing shadow, darker for depth
-				b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color(mix(c, rgb{0x1A, 0x1B, 0x26}, 0.55).hex())).Render(string(r)))
+			case col >= nameStart && col < nameEnd:
+				b.WriteString(paint(colorAt(float64(col-nameStart)/float64(nameEnd-nameStart-1)), r))
+			case col >= nameEnd && col < aiEnd:
+				b.WriteString(paint(green, r))
+			default: // < and />
+				b.WriteString(subtle.Render(string(r)))
 			}
-			col++
 		}
 		b.WriteString("\n")
 	}
 
-	// " A I  ──── v1.2.3", as wide as the logo.
-	name := " A I   "
-	rule := max(3, logoWidth-utf8.RuneCountInString(name)-len(version)-1)
-	var sub strings.Builder
-	for i, r := range name {
-		c := colorAt(float64(i) / float64(logoWidth-1))
-		sub.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(c.hex())).Render(string(r)))
-	}
-	b.WriteString("  " + sub.String() + subtle.Render(strings.Repeat("─", rule)+" "+version) + "\n")
-	b.WriteString("  " + tagline)
+	// "agents, skills … ──── v1.2.3", as wide as the logo.
+	rule := max(3, logoWidth-utf8.RuneCountInString(tagline)-len(version)-2)
+	b.WriteString("\n  " + subtle.Render(tagline+" "+strings.Repeat("─", rule)+" "+version))
 	return b.String()
 }
