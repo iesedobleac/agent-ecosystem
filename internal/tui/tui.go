@@ -37,6 +37,7 @@ const (
 	scMenu screen = iota
 	scTargets
 	scComponents
+	scPersona
 	scModels
 	scReview
 	scChecking
@@ -195,6 +196,7 @@ type Model struct {
 	detected   []string
 	targets    checklist
 	components checklist
+	persona    checklist   // persona choice and concise style
 	values     []string    // chosen model per modelKeys entry; empty until chosen
 	modelKeys  [][2]string // target, profile
 	modelFocus int         // row on the models screen; one past the last is Continue
@@ -252,11 +254,13 @@ func New() Model {
 		{key: "engram", label: "Engram memory", desc: "persistent memory MCP and plugin", checked: comps.Engram},
 		{key: "codegraph", label: "CodeGraph", desc: "code graph MCP", checked: comps.CodeGraph},
 		{key: "subagent-monitor", label: "Subagent monitor", desc: "OpenCode subagent statusline that Engram adds; off removes it", checked: comps.SubagentMonitor},
-		{key: "persona-none", label: "None", desc: "your assistant's default voice; adds no tokens",
-			checked: comps.SelectedPersona() == "none", group: "persona", section: "Persona"},
+	}
+	m.persona.items = []item{
 		{key: "persona-architect", label: "Architect",
 			desc:    "senior architect: verifies before agreeing, challenges with evidence, one question at a time (~300 tokens)",
 			checked: comps.SelectedPersona() == "architect", group: "persona", section: "Persona"},
+		{key: "persona-none", label: "None", desc: "your assistant's default voice; adds no tokens",
+			checked: comps.SelectedPersona() == "none", group: "persona", section: "Persona"},
 		{key: "concise", label: "Concise",
 			desc:    "caveman-style replies: answer first, no filler, code and errors verbatim; cuts output tokens (~600 tokens)",
 			checked: comps.Concise, section: "Style"},
@@ -320,7 +324,7 @@ func (m Model) options() installer.Options {
 	opts := installer.Options{Targets: m.targets.checked(), DryRun: m.dryRun,
 		Models: map[string]render.Models{}}
 	comps := map[string]bool{}
-	for _, k := range m.components.checked() {
+	for _, k := range append(m.components.checked(), m.persona.checked()...) {
 		comps[k] = true
 	}
 	opts.Components = installer.Components{SDD: comps["sdd"], Android: comps["android"], Skills: comps["skills"],
@@ -674,11 +678,14 @@ func (m Model) handleKey(msg tea.KeyMsg, key string) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 		}
-	case scTargets, scComponents:
+	case scTargets, scComponents, scPersona:
 		list := &m.targets
 		next, prev := scComponents, scMenu
-		if m.screen == scComponents {
-			list, next, prev = &m.components, scModels, scTargets
+		switch m.screen {
+		case scComponents:
+			list, next, prev = &m.components, scPersona, scTargets
+		case scPersona:
+			list, next, prev = &m.persona, scModels, scComponents
 		}
 		switch key {
 		case "enter":
@@ -701,7 +708,7 @@ func (m Model) handleKey(msg tea.KeyMsg, key string) (tea.Model, tea.Cmd) {
 		vis := m.visibleModels()
 		switch key {
 		case "esc":
-			m.screen = scComponents
+			m.screen = scPersona
 		case "up", "k", "shift+tab":
 			if m.modelFocus > 0 {
 				m.modelFocus--
@@ -789,13 +796,19 @@ func (m Model) View() string {
 		b.WriteString(m.menuView())
 		b.WriteString("\n  " + subtle.Render("↑/↓ move · enter select · q quit"))
 	case scTargets:
-		b.WriteString(title.Render("Assistants") + subtle.Render("  (1/4)") + "\n\n" + m.targets.view())
+		b.WriteString(title.Render("Assistants") + subtle.Render("  (1/5)") + "\n\n" + m.targets.view())
 		b.WriteString(help("space toggle · a all · enter next · esc back"))
 	case scComponents:
-		b.WriteString(title.Render("Components") + subtle.Render("  (2/4)") + "\n\n" + m.components.view())
+		b.WriteString(title.Render("Components") + subtle.Render("  (2/5)") + "\n\n" + m.components.view())
 		b.WriteString(help("space toggle · a all · enter next · esc back"))
+	case scPersona:
+		b.WriteString(title.Render("Persona") + subtle.Render("  (3/5) how your assistant talks to you") + "\n\n" + m.persona.view())
+		if d := personaDetails[m.persona.items[m.persona.cursor].key]; len(d) > 0 {
+			b.WriteString("\n" + box.Render(strings.Join(d, "\n")) + "\n")
+		}
+		b.WriteString(help("↑/↓ move · space choose · enter next · esc back"))
 	case scModels:
-		b.WriteString(title.Render("Models") + subtle.Render("  (3/4) planner: orchestrators and planning · executor: worker, device, apply · reviewer: review, verify") + "\n\n")
+		b.WriteString(title.Render("Models") + subtle.Render("  (4/5) planner: orchestrators and planning · executor: worker, device, apply · reviewer: review, verify") + "\n\n")
 		switch {
 		case !m.modelsReady():
 			b.WriteString(m.spin.View() + " Listing the available models…\n")
@@ -829,7 +842,7 @@ func (m Model) View() string {
 			b.WriteString(help("↑/↓ move · enter choose · esc back"))
 		}
 	case scReview:
-		b.WriteString(title.Render("Review") + subtle.Render("  (4/4)") + "\n\n" + box.Render(m.reviewView()) + "\n\n")
+		b.WriteString(title.Render("Review") + subtle.Render("  (5/5)") + "\n\n" + box.Render(m.reviewView()) + "\n\n")
 		buttons := []string{"Install", "Dry run", "Cancel"}
 		for i, btn := range buttons {
 			if i == m.review {
@@ -900,6 +913,34 @@ func (m Model) View() string {
 		b.WriteString(help("enter menu · q quit"))
 	}
 	return b.String() + "\n"
+}
+
+// personaDetails explain the option under the cursor on the persona step.
+var personaDetails = map[string][]string{
+	"persona-architect": {
+		"Talks like a senior architect who cares that you understand:",
+		"• verifies before agreeing and corrects you with evidence",
+		"• one question at a time; alternatives only at a real fork",
+		"• pushes back on code without context; teaches in depth only when you ask",
+		"",
+		"Cost: ~300 tokens, loaded once from AGENTS.md / CLAUDE.md.",
+	},
+	"persona-none": {
+		"Keeps your assistant's own voice: nothing is added to AGENTS.md / CLAUDE.md.",
+		"",
+		"Cost: no tokens.",
+	},
+	"concise": {
+		"Caveman-style replies, adapted from caveman (Apache-2.0):",
+		"• answer first; no greetings, hedging or recaps",
+		"• code, commands, paths and errors stay verbatim",
+		"• full sentences for warnings, irreversible actions and questions",
+		"",
+		"Before: \"Sure! I'd be happy to help. The issue is likely caused by…\"",
+		"After:  \"Bug in auth middleware. Expiry check uses `<` not `<=`. Fix:\"",
+		"",
+		"Cost: ~600 tokens of rules; it cuts output tokens, the expensive ones.",
+	},
 }
 
 // menuView is the links, the install status and the menu options.
@@ -1066,7 +1107,7 @@ func (m Model) reviewView() string {
 		b.WriteString(strings.TrimRight(line, " ") + "\n")
 	}
 	persona, style := "None", "normal"
-	for _, it := range m.components.items {
+	for _, it := range m.persona.items {
 		switch {
 		case it.group == "persona" && it.checked:
 			persona = it.label

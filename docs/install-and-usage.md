@@ -106,12 +106,11 @@ iesedoble-ai version
 iesedoble-ai
 ```
 
-Choose **Install or update** and go through the four steps. Move with `↑`/`↓`, toggle with
+Choose **Install or update** and go through the five steps. Move with `↑`/`↓`, toggle with
 `space`, continue with `enter`, go back with `esc`.
 
 1. **Assistants.** The ones found on this machine are marked as detected and preselected.
-2. **Components.** All but the subagent monitor are selected by default, with the Architect
-   persona and the Concise style:
+2. **Components.** All but the subagent monitor are selected by default:
 
    | Component | What it adds |
    |---|---|
@@ -122,15 +121,22 @@ Choose **Install or update** and go through the four steps. Move with `↑`/`↓
    | Engram memory | Persistent memory MCP server and plugin |
    | CodeGraph | Code graph MCP server |
    | Subagent monitor | Keeps the OpenCode subagent statusline that Engram's setup adds. Off by default: the installer removes it from `tui.json` and `cli.json`, after a backup |
-   | Persona: None / Architect | The voice of every reply, added once to `AGENTS.md` / `CLAUDE.md`. Architect verifies before agreeing, challenges with evidence and asks one question at a time (~300 tokens). None keeps your assistant's default voice |
-   | Concise | Caveman-style replies: answer first, no filler, code and errors verbatim. Cuts output tokens (~600 tokens of rules) |
 
-3. **Models.** One model per role and assistant: **planner** (orchestrators and planning),
+3. **Persona.** How your assistant talks to you, added once to `AGENTS.md` / `CLAUDE.md`. A panel
+   explains the option under the cursor, with what it changes and what it costs:
+
+   | Option | What it does |
+   |---|---|
+   | Architect (default) | Verifies before agreeing, corrects you with evidence, asks one question at a time and teaches in depth only when you ask (~300 tokens) |
+   | None | Keeps your assistant's own voice; adds nothing |
+   | Concise (on by default) | Caveman-style replies: answer first, no filler, code and errors verbatim, full sentences for warnings and questions. About 600 tokens of rules that cut output tokens, the expensive ones |
+
+4. **Models.** One model per role and assistant: **planner** (orchestrators and planning),
    **executor** (implementation and device work) and **reviewer** (review and verification).
    Press `enter` on a row to pick from the models the assistant offers, and type to filter.
    OpenCode lists the models of the providers you have connected; Claude Code offers `opus`,
    `sonnet`, `haiku`, `fable` and `inherit`. **Custom…** accepts any other model ID.
-4. **Review.** Check the summary and choose **Install**, or **Dry run** to see what would change
+5. **Review.** Check the summary and choose **Install**, or **Dry run** to see what would change
    without writing anything.
 
 Before writing, the installer shows the tools your selection needs. `✓` is present, `↓` will be

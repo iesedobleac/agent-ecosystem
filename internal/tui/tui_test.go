@@ -32,7 +32,7 @@ func TestModelsScreen(t *testing.T) {
 	for i := range m.targets.items {
 		m.targets.items[i].checked = true
 	}
-	m.screen = scComponents
+	m.screen = scPersona
 	m = press(t, m, enter)
 	if m.screen != scModels || m.modelsReady() {
 		t.Fatalf("screen %d, ready %v", m.screen, m.modelsReady())
@@ -90,7 +90,7 @@ func TestPickerWithoutList(t *testing.T) {
 	for i := range m.targets.items {
 		m.targets.items[i].checked = m.targets.items[i].key == "opencode"
 	}
-	m.screen = scComponents
+	m.screen = scPersona
 	m = press(t, m, enter)
 	next, _ := m.Update(modelsMsg{lists: map[string][]string{"opencode": nil}, errs: map[string]string{"opencode": "opencode models: timed out after 60s"}})
 	m = next.(Model)
@@ -186,19 +186,19 @@ func TestPersonaChoice(t *testing.T) {
 	if opts := m.options(); opts.Components.Persona != "architect" || !opts.Components.Concise {
 		t.Fatalf("defaults: %+v", opts.Components)
 	}
-	for i, it := range m.components.items {
+	for i, it := range m.persona.items {
 		if it.key == "persona-none" {
-			m.components.cursor = i
+			m.persona.cursor = i
 		}
 	}
-	m.components.update(" ")
-	m.components.update(" ") // selecting a choice twice keeps it selected
+	m.persona.update(" ")
+	m.persona.update(" ") // selecting a choice twice keeps it selected
 	opts := m.options()
 	if opts.Components.Persona != "none" {
 		t.Errorf("persona after choosing None: %q", opts.Components.Persona)
 	}
 	selected := 0
-	for _, it := range m.components.items {
+	for _, it := range m.persona.items {
 		if it.group == "persona" && it.checked {
 			selected++
 		}
@@ -206,11 +206,40 @@ func TestPersonaChoice(t *testing.T) {
 	if selected != 1 {
 		t.Errorf("%d personas selected", selected)
 	}
-	m.components.update("a") // toggling all leaves the persona choice alone
+	m.persona.update("a") // toggling all leaves the persona choice alone
 	if m.options().Components.Persona != "none" {
 		t.Error("toggle-all changed the persona")
 	}
-	if view := m.components.view(); !strings.Contains(view, "(•) None") || !strings.Contains(view, "Persona") || !strings.Contains(view, "Style") {
+	if view := m.persona.view(); !strings.Contains(view, "(•) None") || !strings.Contains(view, "Persona") || !strings.Contains(view, "Style") {
 		t.Errorf("components view:\n%s", view)
+	}
+}
+
+func TestPersonaStep(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	m := New()
+	m.screen = scComponents
+	m = press(t, m, enter)
+	if m.screen != scPersona {
+		t.Fatalf("components should lead to the persona step, got %d", m.screen)
+	}
+	view := m.View()
+	for _, want := range []string{"(3/5)", "Architect", "verifies before agreeing and corrects you with evidence", "~300 tokens"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("persona step missing %q:\n%s", want, view)
+		}
+	}
+	m = press(t, m, down, down) // onto Concise: its explanation replaces the architect's
+	if view := m.View(); !strings.Contains(view, "Before:") || strings.Contains(view, "corrects you with evidence") {
+		t.Errorf("details for Concise:\n%s", view)
+	}
+	m = press(t, m, tea.KeyMsg{Type: tea.KeyEsc})
+	if m.screen != scComponents {
+		t.Errorf("esc should go back to components, got %d", m.screen)
+	}
+	for _, it := range m.components.items {
+		if it.group != "" || it.key == "concise" {
+			t.Errorf("components still list %q", it.key)
+		}
 	}
 }

@@ -82,18 +82,20 @@ go install github.com/iesedobleac/iesedoble-ai/cmd/iesedoble-ai@latest
 
 <table>
   <tr>
+    <td width="50%"><img src="docs/images/persona.png" alt="Choosing the persona and the concise style"></td>
     <td width="50%"><img src="docs/images/picker.png" alt="Choosing a model from the ones the assistant lists"></td>
-    <td width="50%"><img src="docs/images/review.png" alt="Review of the selection before installing"></td>
   </tr>
   <tr>
+    <td align="center"><b>Persona</b>: how your assistant talks to you, explained option by option</td>
     <td align="center"><b>Models</b>: listed from your assistant, filter as you type</td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/review.png" alt="Review of the selection before installing"></td>
+    <td width="50%"><img src="docs/images/install.png" alt="Install progress"></td>
+  </tr>
+  <tr>
     <td align="center"><b>Review</b>: everything that will be installed, at a glance</td>
-  </tr>
-  <tr>
-    <td colspan="2"><img src="docs/images/install.png" alt="Install progress"></td>
-  </tr>
-  <tr>
-    <td colspan="2" align="center"><b>Install</b>: every step, with progress</td>
+    <td align="center"><b>Install</b>: every step, with progress</td>
   </tr>
 </table>
 
