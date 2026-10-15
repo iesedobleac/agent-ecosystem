@@ -179,3 +179,38 @@ func TestMenuView(t *testing.T) {
 		t.Errorf("notices shown while up to date:\n%s", view)
 	}
 }
+
+func TestPersonaChoice(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	m := New()
+	if opts := m.options(); opts.Components.Persona != "architect" || !opts.Components.Concise {
+		t.Fatalf("defaults: %+v", opts.Components)
+	}
+	for i, it := range m.components.items {
+		if it.key == "persona-none" {
+			m.components.cursor = i
+		}
+	}
+	m.components.update(" ")
+	m.components.update(" ") // selecting a choice twice keeps it selected
+	opts := m.options()
+	if opts.Components.Persona != "none" {
+		t.Errorf("persona after choosing None: %q", opts.Components.Persona)
+	}
+	selected := 0
+	for _, it := range m.components.items {
+		if it.group == "persona" && it.checked {
+			selected++
+		}
+	}
+	if selected != 1 {
+		t.Errorf("%d personas selected", selected)
+	}
+	m.components.update("a") // toggling all leaves the persona choice alone
+	if m.options().Components.Persona != "none" {
+		t.Error("toggle-all changed the persona")
+	}
+	if view := m.components.view(); !strings.Contains(view, "(•) None") || !strings.Contains(view, "Persona") || !strings.Contains(view, "Style") {
+		t.Errorf("components view:\n%s", view)
+	}
+}

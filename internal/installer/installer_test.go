@@ -647,3 +647,51 @@ func TestLatestVersion(t *testing.T) {
 		t.Errorf("LatestVersion: %q, %v", v, err)
 	}
 }
+
+func TestPersonaInRules(t *testing.T) {
+	for _, c := range []struct {
+		persona          string
+		concise          bool
+		architect, terse bool
+	}{
+		{"architect", true, true, true},
+		{"none", true, false, true},
+		{"architect", false, true, false},
+		{"none", false, false, false},
+		{"", false, true, false}, // installs recorded before the choice keep the architect
+	} {
+		home := t.TempDir()
+		opts := testOptions(home)
+		opts.Targets = []string{"claude"}
+		opts.Components.Persona, opts.Components.Concise = c.persona, c.concise
+		if _, err := Install(opts, testLogger{t}); err != nil {
+			t.Fatal(err)
+		}
+		data, _ := os.ReadFile(filepath.Join(opts.ClaudeDir, "CLAUDE.md"))
+		text := string(data)
+		if strings.Contains(text, "## Persona: Architect") != c.architect || strings.Contains(text, "## Style: Concise") != c.terse {
+			t.Errorf("persona %q concise %v: rules\n%s", c.persona, c.concise, text)
+		}
+		if !strings.Contains(text, "## Shared Rules") || strings.Count(text, markStart) != 1 {
+			t.Errorf("persona %q: shared rules or block missing", c.persona)
+		}
+	}
+}
+
+func TestOrchestratorsCarryNoPersona(t *testing.T) {
+	home := t.TempDir()
+	opts := testOptions(home)
+	opts.Targets = []string{"claude"}
+	if _, err := Install(opts, testLogger{t}); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"sdd-orchestrator", "android-orchestrator"} {
+		data, _ := os.ReadFile(filepath.Join(opts.ClaudeDir, "agents", name+".md"))
+		if strings.Contains(string(data), "## Persona") || !strings.Contains(string(data), "## Contextual Skill Loading") {
+			t.Errorf("%s: persona still inline or skill loading lost", name)
+		}
+	}
+	if _, err := Install(Options{Home: home, Targets: []string{"claude"}, Components: Components{Persona: "boss"}}, testLogger{t}); err == nil {
+		t.Error("unknown persona accepted")
+	}
+}

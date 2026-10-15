@@ -110,7 +110,8 @@ Choose **Install or update** and go through the four steps. Move with `↑`/`↓
 `space`, continue with `enter`, go back with `esc`.
 
 1. **Assistants.** The ones found on this machine are marked as detected and preselected.
-2. **Components.** All but the subagent monitor are selected by default:
+2. **Components.** All but the subagent monitor are selected by default, with the Architect
+   persona and the Concise style:
 
    | Component | What it adds |
    |---|---|
@@ -121,6 +122,8 @@ Choose **Install or update** and go through the four steps. Move with `↑`/`↓
    | Engram memory | Persistent memory MCP server and plugin |
    | CodeGraph | Code graph MCP server |
    | Subagent monitor | Keeps the OpenCode subagent statusline that Engram's setup adds. Off by default: the installer removes it from `tui.json` and `cli.json`, after a backup |
+   | Persona: None / Architect | The voice of every reply, added once to `AGENTS.md` / `CLAUDE.md`. Architect verifies before agreeing, challenges with evidence and asks one question at a time (~300 tokens). None keeps your assistant's default voice |
+   | Concise | Caveman-style replies: answer first, no filler, code and errors verbatim. Cuts output tokens (~600 tokens of rules) |
 
 3. **Models.** One model per role and assistant: **planner** (orchestrators and planning),
    **executor** (implementation and device work) and **reviewer** (review and verification).
@@ -152,6 +155,7 @@ iesedoble-ai install                       # detected assistants, everything, de
 iesedoble-ai install --dry-run             # show what would change
 iesedoble-ai install --targets claude --without android,codegraph
 iesedoble-ai install --with subagent-monitor
+iesedoble-ai install --persona none --concise=false   # assistant's default voice
 iesedoble-ai install --planner openai/gpt-5.5 --claude-reviewer opus
 ```
 

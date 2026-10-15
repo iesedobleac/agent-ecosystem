@@ -46,11 +46,31 @@ type Components struct {
 	// SubagentMonitor keeps the OpenCode subagent statusline that `engram setup`
 	// adds to tui.json; off removes it.
 	SubagentMonitor bool `json:"subagentMonitor"`
+	// Persona is the voice added once to the global rules: one of Personas.
+	// Installs recorded before it existed have it empty and keep "architect",
+	// the persona the orchestrators used to carry.
+	Persona string `json:"persona,omitempty"`
+	// Concise adds the caveman-style concise reply rules to the global rules.
+	Concise bool `json:"concise"`
 }
 
-// DefaultComponents selects everything but the subagent monitor.
+// Personas are the persona choices; "none" adds nothing.
+var Personas = []string{"none", "architect"}
+
+// DefaultComponents selects everything but the subagent monitor, with the
+// architect persona and the concise style.
 func DefaultComponents() Components {
-	return Components{SDD: true, Android: true, Skills: true, Plugin: true, Engram: true, CodeGraph: true}
+	return Components{SDD: true, Android: true, Skills: true, Plugin: true, Engram: true, CodeGraph: true,
+		Persona: "architect", Concise: true}
+}
+
+// SelectedPersona is the persona to install, "architect" for installs that
+// predate the choice.
+func (c Components) SelectedPersona() string {
+	if c.Persona == "" {
+		return "architect"
+	}
+	return c.Persona
 }
 
 // Options configure a run.
@@ -560,12 +580,29 @@ func (r *run) skillFiles(target string, values map[string]string) (map[string]st
 	return files, nil
 }
 
+// rules is the managed block of AGENTS.md / CLAUDE.md: the shared rules, then
+// the persona and the concise style when selected, so each is loaded once.
 func (r *run) rules(target string, values map[string]string) (string, error) {
-	data, err := fs.ReadFile(assets.FS, "rules/rules.md")
-	if err != nil {
-		return "", err
+	files := []string{"rules/rules.md"}
+	if p := r.opts.Components.SelectedPersona(); p != "none" {
+		files = append(files, "persona/"+p+".md")
 	}
-	return render.Template(string(data), target, values)
+	if r.opts.Components.Concise {
+		files = append(files, "persona/concise.md")
+	}
+	var parts []string
+	for _, f := range files {
+		data, err := fs.ReadFile(assets.FS, f)
+		if err != nil {
+			return "", err
+		}
+		text, err := render.Template(string(data), target, values)
+		if err != nil {
+			return "", err
+		}
+		parts = append(parts, strings.TrimSpace(text))
+	}
+	return strings.Join(parts, "\n\n"), nil
 }
 
 func (r *run) servers(values map[string]string) (map[string]render.MCPServer, []string, error) {

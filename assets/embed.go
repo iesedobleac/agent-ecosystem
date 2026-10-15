@@ -3,7 +3,7 @@ package assets
 
 import "embed"
 
-// FS holds agents/, skills/, rules/, plugins/ and mcp.json.
+// FS holds agents/, skills/, rules/, persona/, plugins/ and mcp.json.
 //
-//go:embed agents skills rules plugins mcp.json
+//go:embed agents skills rules persona plugins mcp.json
 var FS embed.FS

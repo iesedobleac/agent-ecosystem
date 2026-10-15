@@ -115,6 +115,7 @@ go install github.com/iesedobleac/iesedoble-ai/cmd/iesedoble-ai@latest
 | 🧠 **Memory** | [Engram](https://github.com/Gentleman-Programming/engram) MCP + `engram setup opencode` | Engram MCP + `engram setup claude-code` |
 | 🕸 **Code graph** | [CodeGraph](https://www.npmjs.com/package/@colbymchenry/codegraph) MCP | Same |
 | 🔔 **Plugin** | Context warning: a toast past 200k tokens, then every +100k | Not needed |
+| 🎭 **Persona** | Optional, added once to `AGENTS.md`: **Architect** (verifies before agreeing, challenges with evidence) or none, plus the **Concise** style that cuts output tokens | Same, in `CLAUDE.md` |
 
 Every component can be switched off in the menu or with `--without`. Engram's setup also adds an
 OpenCode subagent statusline; the installer removes it from `tui.json` and `cli.json` unless you
@@ -193,6 +194,8 @@ iesedoble-ai uninstall   # remove everything it installed
 | `--targets` | `opencode`, `claude` (default: the ones found on this machine) |
 | `--without` | Skip components: `sdd`, `android`, `skills`, `plugin`, `engram`, `codegraph` |
 | `--with` | Add components that are off by default: `subagent-monitor` |
+| `--persona` | `architect` (default) or `none` |
+| `--concise` | Caveman-style concise replies (default on; `--concise=false` to skip) |
 | `--planner`, `--executor`, `--reviewer` | OpenCode model per role |
 | `--claude-planner`, `--claude-executor`, `--claude-reviewer` | Claude Code model per role |
 | `--config-dir`, `--claude-dir` | Assistant config directories |
@@ -285,4 +288,5 @@ Push a `v*` tag. GoReleaser builds the macOS and Linux binaries, publishes them 
 
 ## 📄 License
 
-[MIT](LICENSE)
+[MIT](LICENSE). The Concise style is adapted from
+[caveman](https://github.com/juliusbrussee/caveman) (Apache-2.0).

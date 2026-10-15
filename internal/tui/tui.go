@@ -48,6 +48,12 @@ const (
 type item struct {
 	key, label, desc string
 	checked          bool
+	// group makes the item one choice of several: selecting it clears the
+	// others with the same group, and it shows as ( ) / (•).
+	group string
+	// section is a heading shown above the item when it differs from the
+	// previous item's.
+	section string
 }
 
 type checklist struct {
@@ -66,14 +72,26 @@ func (c *checklist) update(key string) {
 			c.cursor++
 		}
 	case " ", "x":
-		c.items[c.cursor].checked = !c.items[c.cursor].checked
-	case "a":
-		all := true
-		for _, it := range c.items {
-			all = all && it.checked
+		it := &c.items[c.cursor]
+		if it.group == "" {
+			it.checked = !it.checked
+			break
 		}
 		for i := range c.items {
-			c.items[i].checked = !all
+			if c.items[i].group == it.group {
+				c.items[i].checked = false
+			}
+		}
+		it.checked = true
+	case "a": // toggles the independent items; choices keep their selection
+		all := true
+		for _, it := range c.items {
+			all = all && (it.checked || it.group != "")
+		}
+		for i := range c.items {
+			if c.items[i].group == "" {
+				c.items[i].checked = !all
+			}
 		}
 	}
 }
@@ -81,8 +99,19 @@ func (c *checklist) update(key string) {
 func (c checklist) view() string {
 	var b strings.Builder
 	for i, it := range c.items {
+		if it.section != "" && (i == 0 || c.items[i-1].section != it.section) {
+			if i > 0 {
+				b.WriteString("\n")
+			}
+			b.WriteString(subtle.Render(it.section) + "\n")
+		}
 		mark := "[ ]"
-		if it.checked {
+		switch {
+		case it.group != "" && it.checked:
+			mark = "(•)"
+		case it.group != "":
+			mark = "( )"
+		case it.checked:
 			mark = "[x]"
 		}
 		var line string
@@ -216,13 +245,21 @@ func New() Model {
 		m.targets.items = append(m.targets.items, item{key: t, label: installer.TargetLabels[t], desc: desc, checked: containsStr(selectedTargets, t)})
 	}
 	m.components.items = []item{
-		{"sdd", "SDD flow", "sdd-orchestrator, spec/plan/tasks/apply/verify agents, sdd-workflow skill", comps.SDD},
-		{"android", "Android orchestrator", "android-orchestrator (its explore/worker/review/device subagents come with either)", comps.Android},
-		{"skills", "General skills", "skill-generator", comps.Skills},
-		{"plugin", "Context warning", "OpenCode toast when a session passes 200k tokens", comps.Plugin},
-		{"engram", "Engram memory", "persistent memory MCP and plugin", comps.Engram},
-		{"codegraph", "CodeGraph", "code graph MCP", comps.CodeGraph},
-		{"subagent-monitor", "Subagent monitor", "OpenCode subagent statusline that Engram adds; off removes it", comps.SubagentMonitor},
+		{key: "sdd", label: "SDD flow", desc: "sdd-orchestrator, spec/plan/tasks/apply/verify agents, sdd-workflow skill", checked: comps.SDD},
+		{key: "android", label: "Android orchestrator", desc: "android-orchestrator (its explore/worker/review/device subagents come with either)", checked: comps.Android},
+		{key: "skills", label: "General skills", desc: "skill-generator", checked: comps.Skills},
+		{key: "plugin", label: "Context warning", desc: "OpenCode toast when a session passes 200k tokens", checked: comps.Plugin},
+		{key: "engram", label: "Engram memory", desc: "persistent memory MCP and plugin", checked: comps.Engram},
+		{key: "codegraph", label: "CodeGraph", desc: "code graph MCP", checked: comps.CodeGraph},
+		{key: "subagent-monitor", label: "Subagent monitor", desc: "OpenCode subagent statusline that Engram adds; off removes it", checked: comps.SubagentMonitor},
+		{key: "persona-none", label: "None", desc: "your assistant's default voice; adds no tokens",
+			checked: comps.SelectedPersona() == "none", group: "persona", section: "Persona"},
+		{key: "persona-architect", label: "Architect",
+			desc:    "senior architect: verifies before agreeing, challenges with evidence, one question at a time (~300 tokens)",
+			checked: comps.SelectedPersona() == "architect", group: "persona", section: "Persona"},
+		{key: "concise", label: "Concise",
+			desc:    "caveman-style replies: answer first, no filler, code and errors verbatim; cuts output tokens (~600 tokens)",
+			checked: comps.Concise, section: "Style"},
 	}
 
 	models := map[string]render.Models{}
@@ -288,7 +325,10 @@ func (m Model) options() installer.Options {
 	}
 	opts.Components = installer.Components{SDD: comps["sdd"], Android: comps["android"], Skills: comps["skills"],
 		Plugin: comps["plugin"], Engram: comps["engram"], CodeGraph: comps["codegraph"],
-		SubagentMonitor: comps["subagent-monitor"]}
+		SubagentMonitor: comps["subagent-monitor"], Persona: "none", Concise: comps["concise"]}
+	if comps["persona-architect"] {
+		opts.Components.Persona = "architect"
+	}
 	for i, k := range m.modelKeys {
 		if opts.Models[k[0]] == nil {
 			opts.Models[k[0]] = render.Models{}
@@ -1007,18 +1047,34 @@ func (m Model) reviewView() string {
 
 	// Components in two columns: chosen ones ticked, the rest dimmed.
 	b.WriteString("\n" + section.Render("Components") + "\n")
-	width := 0
+	var parts []item // persona and style get their own line below
 	for _, it := range m.components.items {
+		if it.section == "" {
+			parts = append(parts, it)
+		}
+	}
+	width := 0
+	for _, it := range parts {
 		width = max(width, len(it.label))
 	}
-	half := (len(m.components.items) + 1) / 2
+	half := (len(parts) + 1) / 2
 	for r := 0; r < half; r++ {
-		line := "  " + componentCell(m.components.items[r], width)
-		if r+half < len(m.components.items) {
-			line += "    " + componentCell(m.components.items[r+half], width)
+		line := "  " + componentCell(parts[r], width)
+		if r+half < len(parts) {
+			line += "    " + componentCell(parts[r+half], width)
 		}
 		b.WriteString(strings.TrimRight(line, " ") + "\n")
 	}
+	persona, style := "None", "normal"
+	for _, it := range m.components.items {
+		switch {
+		case it.group == "persona" && it.checked:
+			persona = it.label
+		case it.key == "concise" && it.checked:
+			style = "concise"
+		}
+	}
+	b.WriteString("\n" + section.Render("Persona") + "\n  " + persona + subtle.Render(" · ") + style + " replies\n")
 
 	// Models as a table: one row per assistant, one column per profile.
 	profiles := []string{"planner", "executor", "reviewer"}

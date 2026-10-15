@@ -41,6 +41,9 @@ func Install(opts Options, log Logger) (res *Result, err error) {
 			return nil, fmt.Errorf("unknown target %q (supported: %s)", t, strings.Join(AllTargets, ", "))
 		}
 	}
+	if p := opts.Components.SelectedPersona(); !contains(Personas, p) {
+		return nil, fmt.Errorf("unknown persona %q (choose: %s)", p, strings.Join(Personas, ", "))
+	}
 	if blockers := Blockers(checkRequirements(opts)); len(blockers) > 0 {
 		var names []string
 		for _, b := range blockers {

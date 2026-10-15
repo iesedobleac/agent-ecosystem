@@ -92,6 +92,8 @@ func install(args []string) {
 	fs.Var(&targets, "targets", "assistants: "+strings.Join(installer.AllTargets, ", ")+" (default: detected)")
 	fs.Var(&without, "without", "skip components: sdd, android, skills, plugin, engram, codegraph")
 	fs.Var(&with, "with", "add components that are off by default: subagent-monitor")
+	persona := fs.String("persona", "architect", "persona added to the global rules: "+strings.Join(installer.Personas, ", "))
+	concise := fs.Bool("concise", true, "caveman-style concise replies (use --concise=false to skip)")
 	models := map[string]render.Models{}
 	for _, t := range installer.AllTargets {
 		models[t] = render.Models{}
@@ -113,6 +115,7 @@ func install(args []string) {
 	_ = fs.Parse(args)
 
 	comps := installer.DefaultComponents()
+	comps.Persona, comps.Concise = *persona, *concise
 	for _, w := range with {
 		switch w {
 		case "subagent-monitor":
