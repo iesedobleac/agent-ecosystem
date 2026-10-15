@@ -83,11 +83,11 @@ go install github.com/iesedobleac/iesedoble-ai/cmd/iesedoble-ai@latest
 <table>
   <tr>
     <td width="50%"><img src="docs/images/persona.png" alt="Choosing the persona and the concise style"></td>
-    <td width="50%"><img src="docs/images/picker.png" alt="Choosing a model from the ones the assistant lists"></td>
+    <td width="50%"><img src="docs/images/picker.png" alt="Choosing a model and effort per role, with a guide"></td>
   </tr>
   <tr>
     <td align="center"><b>Persona</b>: how your assistant talks to you, explained option by option</td>
-    <td align="center"><b>Models</b>: listed from your assistant, filter as you type</td>
+    <td align="center"><b>Models</b>: one per role, with a guide to what each role needs</td>
   </tr>
   <tr>
     <td width="50%"><img src="docs/images/review.png" alt="Review of the selection before installing"></td>
@@ -161,11 +161,20 @@ subagents also serve the SDD flow.
 
 ### Model roles
 
-| Role | Used by | Claude Code default |
-|---|---|---|
-| **planner** | Orchestrators, exploration and planning agents | `opus` |
-| **executor** | `android-worker`, `android-device`, `sdd-apply` | `haiku` |
-| **reviewer** | `android-review`, `sdd-verify` | `sonnet` |
+Each agent runs on the model of its role. The roles follow one idea: spend where a mistake
+compounds, save where the work is mechanical.
+
+| Role | Used by | What suits it | Claude Code default |
+|---|---|---|---|
+| **planner** | Orchestrators, `sdd-spec`, `sdd-clarify`, `sdd-plan` | Your strongest model, high effort: a bad plan compounds | `opus` · high |
+| **analyst** | `sdd-discovery`, `sdd-constitution`, `sdd-tasks` | A balanced model, medium effort | `sonnet` · medium |
+| **executor** | `android-worker`, `sdd-apply` | A balanced model, low effort: the thinking happened in the plan | `sonnet` · low |
+| **scout** | `android-explore`, `android-device` | Your fastest, cheapest model, low effort | `haiku` · low |
+| **reviewer** | `android-review`, `sdd-verify` | A strong model, ideally of another family than the executor | `opus` · medium |
+
+The menu explains each role as you choose, but the choice is yours. In Claude Code each agent
+also gets the role's effort (`auto` keeps your session's); in OpenCode, add a variant to the
+model ID when the model offers one (`provider/model#high`).
 
 In the menu each role gets a model from the list your assistant offers: OpenCode's come from
 `opencode models` (only the providers you have connected); Claude Code's are `opus`, `sonnet`,
@@ -198,8 +207,9 @@ iesedoble-ai uninstall   # remove everything it installed
 | `--with` | Add components that are off by default: `subagent-monitor` |
 | `--persona` | `architect` (default) or `none` |
 | `--concise` | Caveman-style concise replies (default on; `--concise=false` to skip) |
-| `--planner`, `--executor`, `--reviewer` | OpenCode model per role |
-| `--claude-planner`, `--claude-executor`, `--claude-reviewer` | Claude Code model per role |
+| `--planner`, `--analyst`, `--executor`, `--scout`, `--reviewer` | OpenCode model per role |
+| `--claude-planner`, `--claude-analyst`, … `--claude-reviewer` | Claude Code model per role |
+| `--claude-planner-effort`, … `--claude-reviewer-effort` | Claude Code effort per role: `auto`, `low`, `medium`, `high`, `xhigh`, `max` |
 | `--config-dir`, `--claude-dir` | Assistant config directories |
 | `--deliverables-dir`, `--android-sdk` | Paths the agents use |
 | `--skip-deps`, `--no-shell-profile`, `--dry-run` | Behaviour |

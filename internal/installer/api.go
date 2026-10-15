@@ -41,6 +41,13 @@ func Install(opts Options, log Logger) (res *Result, err error) {
 			return nil, fmt.Errorf("unknown target %q (supported: %s)", t, strings.Join(AllTargets, ", "))
 		}
 	}
+	for t, efforts := range opts.Efforts {
+		for p, e := range efforts {
+			if e != "" && !contains(EffortLevels, e) {
+				return nil, fmt.Errorf("%s: unknown effort %q for %s (choose: %s)", TargetLabels[t], e, p, strings.Join(EffortLevels, ", "))
+			}
+		}
+	}
 	if p := opts.Components.SelectedPersona(); !contains(Personas, p) {
 		return nil, fmt.Errorf("unknown persona %q (choose: %s)", p, strings.Join(Personas, ", "))
 	}

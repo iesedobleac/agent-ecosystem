@@ -89,8 +89,8 @@ func TestCheckModels(t *testing.T) {
 	}
 	opts := testOptions(t.TempDir())
 	opts.Models = map[string]render.Models{
-		"opencode": {"planner": "openai/gpt-5.5", "executor": "openai/gpt-5.5", "reviewer": "openai/missing"},
-		"claude":   {"planner": "opus", "executor": "claude-haiku-4-5-20251001", "reviewer": "gpt"},
+		"opencode": {"planner": "openai/gpt-5.5", "analyst": "openai/gpt-5.5", "executor": "openai/gpt-5.5", "scout": "openai/gpt-5.5", "reviewer": "openai/missing"},
+		"claude":   {"planner": "opus", "analyst": "sonnet", "executor": "claude-haiku-4-5-20251001", "scout": "haiku", "reviewer": "gpt"},
 	}
 	var warns []string
 	if _, err := Install(opts, warnLogger{&warns}); err != nil {
@@ -693,5 +693,31 @@ func TestOrchestratorsCarryNoPersona(t *testing.T) {
 	}
 	if _, err := Install(Options{Home: home, Targets: []string{"claude"}, Components: Components{Persona: "boss"}}, testLogger{t}); err == nil {
 		t.Error("unknown persona accepted")
+	}
+}
+
+func TestClaudeEfforts(t *testing.T) {
+	opts := testOptions(t.TempDir())
+	opts.Targets = []string{"claude"}
+	opts.Efforts = map[string]render.Efforts{"claude": {"executor": "auto", "reviewer": "max"}}
+	if _, err := Install(opts, testLogger{t}); err != nil {
+		t.Fatal(err)
+	}
+	for agent, want := range map[string]string{
+		"sdd-plan":        "effort: high",   // planner default
+		"sdd-tasks":       "effort: medium", // analyst default
+		"android-explore": "effort: low",    // scout default
+		"android-review":  "effort: max",    // chosen
+		"android-worker":  "",               // auto: the session's effort
+	} {
+		data, _ := os.ReadFile(filepath.Join(opts.ClaudeDir, "agents", agent+".md"))
+		text := string(data)
+		if want == "" && strings.Contains(text, "effort:") || want != "" && !strings.Contains(text, want+"\n") {
+			t.Errorf("%s: want %q in\n%.400s", agent, want, text)
+		}
+	}
+	opts.Efforts = map[string]render.Efforts{"claude": {"planner": "extreme"}}
+	if _, err := Install(opts, testLogger{t}); err == nil || !strings.Contains(err.Error(), "unknown effort") {
+		t.Errorf("invalid effort: %v", err)
 	}
 }

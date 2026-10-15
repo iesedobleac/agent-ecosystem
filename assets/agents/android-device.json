@@ -2,7 +2,7 @@
   "name": "android-device",
   "description": "On-device runner for Android checks. Installs the given build, drives adb, uiautomator, screenshots, logcat, and perfetto, and returns measured values with the artifacts saved to disk. Never edits code.",
   "mode": "subagent",
-  "profile": "executor",
+  "profile": "scout",
   "hidden": true,
   "steps": null,
   "rules": [

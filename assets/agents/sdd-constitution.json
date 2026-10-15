@@ -2,7 +2,7 @@
   "name": "sdd-constitution",
   "description": "Helps agree on project principles through focused questions and proposes a concise constitution at docs/constitution.md.",
   "mode": "subagent",
-  "profile": "planner",
+  "profile": "analyst",
   "hidden": false,
   "steps": null,
   "rules": [

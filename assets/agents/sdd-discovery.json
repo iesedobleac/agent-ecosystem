@@ -2,7 +2,7 @@
   "name": "sdd-discovery",
   "description": "Understands existing projects through exploration and interviews, and proposes a concise, verifiable AGENTS.md.",
   "mode": "subagent",
-  "profile": "planner",
+  "profile": "analyst",
   "hidden": false,
   "steps": null,
   "rules": [

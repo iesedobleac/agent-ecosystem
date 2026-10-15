@@ -2,7 +2,7 @@
   "name": "android-explore",
   "description": "Read-only code explorer. Maps files, symbols, call paths, and impact for a parent-provided scope using CodeGraph first, and returns a compressed path:line handoff.",
   "mode": "subagent",
-  "profile": "planner",
+  "profile": "scout",
   "hidden": true,
   "steps": null,
   "rules": [

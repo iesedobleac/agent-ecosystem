@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"path"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -162,6 +163,9 @@ func LoadAgents(fsys fs.FS) ([]Agent, error) {
 		if err := json.Unmarshal(data, &a); err != nil {
 			return nil, fmt.Errorf("%s: %w", e.Name(), err)
 		}
+		if !slices.Contains(Profiles, a.Profile) {
+			return nil, fmt.Errorf("%s: unknown profile %q (one of %s)", e.Name(), a.Profile, strings.Join(Profiles, ", "))
+		}
 		body, err := fs.ReadFile(fsys, path.Join("agents", strings.TrimSuffix(e.Name(), ".json")+".md"))
 		if err != nil {
 			return nil, err
@@ -182,8 +186,17 @@ func Quote(s string) string {
 	return strings.TrimSuffix(buf.String(), "\n")
 }
 
-// Models maps a profile (planner, executor, reviewer) to a model reference.
+// Profiles are the agent roles a model is chosen for, in display order:
+// planner (orchestrators, specs, plans), analyst (discovery, constitution,
+// tasks), executor (implementation), scout (code search, device runs) and
+// reviewer (review, verification).
+var Profiles = []string{"planner", "analyst", "executor", "scout", "reviewer"}
+
+// Models maps a profile to a model reference.
 type Models map[string]string
+
+// Efforts maps a profile to a reasoning effort level; empty keeps the session's.
+type Efforts map[string]string
 
 // OpenCodeAgent renders an OpenCode agent file.
 func OpenCodeAgent(a Agent, values map[string]string, models Models) (string, error) {
@@ -313,13 +326,16 @@ func ClaudeTools(a Agent, all []Agent, mcpServers []string) []string {
 }
 
 // ClaudeAgent renders a Claude Code subagent file.
-func ClaudeAgent(a Agent, all []Agent, values map[string]string, models Models, mcpServers []string) (string, error) {
+func ClaudeAgent(a Agent, all []Agent, values map[string]string, models Models, efforts Efforts, mcpServers []string) (string, error) {
 	description := a.Description
 	if a.Mode == "primary" {
 		description += fmt.Sprintf(" Run it as the main agent with `claude --agent %s`; do not delegate to it.", a.Name)
 	}
 	lines := []string{"---", "name: " + a.Name, "description: " + Quote(description),
 		"tools: " + strings.Join(ClaudeTools(a, all, mcpServers), ", "), "model: " + models[a.Profile]}
+	if e := efforts[a.Profile]; e != "" {
+		lines = append(lines, "effort: "+e)
+	}
 	if a.Steps != nil {
 		lines = append(lines, fmt.Sprintf("maxTurns: %d", *a.Steps))
 	}

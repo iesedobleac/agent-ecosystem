@@ -75,18 +75,20 @@ func (c Components) SelectedPersona() string {
 
 // Options configure a run.
 type Options struct {
-	Targets         []string                 `json:"targets"`
-	Models          map[string]render.Models `json:"models"`
-	Components      Components               `json:"components"`
-	ConfigDir       string                   `json:"configDir,omitempty"`
-	ClaudeDir       string                   `json:"claudeDir,omitempty"`
-	DeliverablesDir string                   `json:"deliverablesDir,omitempty"`
-	AndroidSDK      string                   `json:"androidSdk,omitempty"`
-	SkipDeps        bool                     `json:"-"`
-	NoShellProfile  bool                     `json:"noShellProfile"`
-	NoGitBash       bool                     `json:"-"`
-	DryRun          bool                     `json:"-"`
-	Home            string                   `json:"-"` // for tests; defaults to the user's home
+	Targets []string                 `json:"targets"`
+	Models  map[string]render.Models `json:"models"`
+	// Efforts per target and profile; missing ones take DefaultEfforts.
+	Efforts         map[string]render.Efforts `json:"efforts,omitempty"`
+	Components      Components                `json:"components"`
+	ConfigDir       string                    `json:"configDir,omitempty"`
+	ClaudeDir       string                    `json:"claudeDir,omitempty"`
+	DeliverablesDir string                    `json:"deliverablesDir,omitempty"`
+	AndroidSDK      string                    `json:"androidSdk,omitempty"`
+	SkipDeps        bool                      `json:"-"`
+	NoShellProfile  bool                      `json:"noShellProfile"`
+	NoGitBash       bool                      `json:"-"`
+	DryRun          bool                      `json:"-"`
+	Home            string                    `json:"-"` // for tests; defaults to the user's home
 }
 
 // Logger receives progress messages.
@@ -160,6 +162,7 @@ func newRun(opts Options, log Logger) (*run, error) {
 		opts.DeliverablesDir = filepath.Join(home, "agent-deliverables")
 	}
 	opts.Models = withDefaultModels(opts.Models)
+	opts.Efforts = withDefaultEfforts(opts.Efforts)
 	stamp := time.Now().UTC().Format("2006-01-02T15-04-05Z")
 	r := &run{opts: opts, log: log, home: home, stamp: stamp, bins: map[string]string{}, seen: map[string]bool{}}
 	r.backup = filepath.Join(r.stateDir(), "backups", stamp)
@@ -180,6 +183,35 @@ func withDefaultModels(chosen map[string]render.Models) map[string]render.Models
 			}
 		}
 		out[t] = m
+	}
+	return out
+}
+
+// withDefaultEfforts fills the efforts not chosen with each target's defaults.
+func withDefaultEfforts(chosen map[string]render.Efforts) map[string]render.Efforts {
+	out := map[string]render.Efforts{}
+	for t, defaults := range DefaultEfforts {
+		e := render.Efforts{}
+		for k, v := range defaults {
+			e[k] = v
+		}
+		for k, v := range chosen[t] {
+			if v != "" {
+				e[k] = v
+			}
+		}
+		out[t] = e
+	}
+	return out
+}
+
+// efforts is what goes into a target's agent files: "auto" keeps the session's.
+func (r *run) efforts(target string) render.Efforts {
+	out := render.Efforts{}
+	for k, v := range r.opts.Efforts[target] {
+		if v != "auto" {
+			out[k] = v
+		}
 	}
 	return out
 }

@@ -63,11 +63,18 @@ func openRunLog(opts Options, action string, log Logger) (Logger, func(err error
 	for _, t := range opts.Targets {
 		models[t] = resolved[t]
 	}
+	efforts := map[string]any{}
+	for t, e := range withDefaultEfforts(opts.Efforts) {
+		if contains(opts.Targets, t) {
+			efforts[t] = e
+		}
+	}
 	selection, _ := json.MarshalIndent(struct {
 		Targets    []string
 		Components Components
 		Models     map[string]any
-	}{opts.Targets, opts.Components, models}, "", "  ")
+		Efforts    map[string]any `json:",omitempty"`
+	}{opts.Targets, opts.Components, models, efforts}, "", "  ")
 	fmt.Fprintf(f, toolName+" %s %s\n%s %s/%s\n%s\n\n", Version, action,
 		now.Format(time.RFC3339), runtime.GOOS, runtime.GOARCH, selection)
 	pruneLogs(dir)

@@ -131,11 +131,22 @@ Choose **Install or update** and go through the five steps. Move with `↑`/`↓
    | None | Keeps your assistant's own voice; adds nothing |
    | Concise (on by default) | Caveman-style replies: answer first, no filler, code and errors verbatim, full sentences for warnings and questions. About 600 tokens of rules that cut output tokens, the expensive ones |
 
-4. **Models.** One model per role and assistant: **planner** (orchestrators and planning),
-   **executor** (implementation and device work) and **reviewer** (review and verification).
-   Press `enter` on a row to pick from the models the assistant offers, and type to filter.
-   OpenCode lists the models of the providers you have connected; Claude Code offers `opus`,
-   `sonnet`, `haiku`, `fable` and `inherit`. **Custom…** accepts any other model ID.
+4. **Models.** One model per role and assistant. A panel explains the role under the cursor and
+   what suits it; pick whatever you prefer. Press `enter` on a row to choose from the models the
+   assistant offers, and type to filter. OpenCode lists the models of the providers you have
+   connected; Claude Code offers `opus`, `sonnet`, `haiku`, `fable` and `inherit`. **Custom…**
+   accepts any other model ID. In Claude Code, `←`/`→` changes the role's effort.
+
+   | Role | Agents | What suits it |
+   |---|---|---|
+   | planner | Orchestrators, `sdd-spec`, `sdd-clarify`, `sdd-plan` | Strongest model, high effort: a bad plan compounds into a bad implementation |
+   | analyst | `sdd-discovery`, `sdd-constitution`, `sdd-tasks` | Balanced model, medium effort |
+   | executor | `android-worker`, `sdd-apply` | Balanced model, low effort; the cheapest only for trivial edits |
+   | scout | `android-explore`, `android-device` | Fastest, cheapest model, low effort |
+   | reviewer | `android-review`, `sdd-verify` | Strong model, medium effort; another model family than the executor catches different mistakes |
+
+   Effort is reasoning, billed as output tokens: `low` uses roughly a third of `medium`, and
+   `high` several times more. `auto` keeps your session's level.
 5. **Review.** Check the summary and choose **Install**, or **Dry run** to see what would change
    without writing anything.
 
@@ -163,6 +174,7 @@ iesedoble-ai install --targets claude --without android,codegraph
 iesedoble-ai install --with subagent-monitor
 iesedoble-ai install --persona none --concise=false   # assistant's default voice
 iesedoble-ai install --planner openai/gpt-5.5 --claude-reviewer opus
+iesedoble-ai install --claude-executor haiku --claude-executor-effort low
 ```
 
 Run `iesedoble-ai install --help` for every flag. A model the assistant does not list produces

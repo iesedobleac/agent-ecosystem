@@ -1,6 +1,10 @@
 package installer
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/iesedobleac/iesedoble-ai/internal/render"
+)
 
 // AvailableModels lists the models a target can use, or says why it cannot:
 // OpenCode missing, failing, timing out or without a connected provider.
@@ -31,7 +35,7 @@ func (r *run) checkModels() {
 			r.log.Warn(label + ": could not list the available models, so the chosen ones are not checked (" + err.Error() + ")")
 			continue
 		}
-		for _, p := range []string{"planner", "executor", "reviewer"} {
+		for _, p := range render.Profiles {
 			if m := r.opts.Models[id][p]; !KnownModel(id, m, available) {
 				r.log.Warn(fmt.Sprintf("%s: the %s model %q is not among the available models", label, p, m))
 			}

@@ -94,14 +94,25 @@ func install(args []string) {
 	fs.Var(&with, "with", "add components that are off by default: subagent-monitor")
 	persona := fs.String("persona", "architect", "persona added to the global rules: "+strings.Join(installer.Personas, ", "))
 	concise := fs.Bool("concise", true, "caveman-style concise replies (use --concise=false to skip)")
-	models := map[string]render.Models{}
+	models, efforts := map[string]render.Models{}, map[string]render.Efforts{}
 	for _, t := range installer.AllTargets {
 		models[t] = render.Models{}
-		for _, p := range []string{"planner", "executor", "reviewer"} {
+		for _, p := range render.Profiles {
 			name := installer.ModelFlagPrefix(t) + p
 			target, profile := t, p
 			fs.Func(name, fmt.Sprintf("%s %s model (default %s)", installer.TargetLabels[t], p, installer.DefaultModels[t][p]),
 				func(v string) error { models[target][profile] = v; return nil })
+			if defaults, ok := installer.DefaultEfforts[t]; ok {
+				fs.Func(name+"-effort", fmt.Sprintf("%s %s effort: %s (default %s)", installer.TargetLabels[t], p,
+					strings.Join(installer.EffortLevels, ", "), defaults[p]),
+					func(v string) error {
+						if efforts[target] == nil {
+							efforts[target] = render.Efforts{}
+						}
+						efforts[target][profile] = v
+						return nil
+					})
+			}
 		}
 	}
 	configDir := fs.String("config-dir", "", "OpenCode config directory")
@@ -142,7 +153,7 @@ func install(args []string) {
 			fail(fmt.Errorf("unknown component %q", w))
 		}
 	}
-	opts := installer.Options{Targets: targets, Models: models, Components: comps,
+	opts := installer.Options{Targets: targets, Models: models, Efforts: efforts, Components: comps,
 		ConfigDir: *configDir, ClaudeDir: *claudeDir, DeliverablesDir: *deliverables, AndroidSDK: *sdk,
 		SkipDeps: *skipDeps, NoShellProfile: *noProfile, NoGitBash: *noGitBash, DryRun: *dryRun}
 	runInstall(opts)

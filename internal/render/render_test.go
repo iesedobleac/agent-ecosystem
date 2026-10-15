@@ -17,7 +17,7 @@ var values = map[string]string{
 	"BIN_ENGRAM": "engram", "BIN_CODEGRAPH": "codegraph",
 }
 
-var models = render.Models{"planner": "p/planner", "executor": "p/executor", "reviewer": "p/reviewer"}
+var models = render.Models{"planner": "p/planner", "analyst": "p/analyst", "executor": "p/executor", "scout": "p/scout", "reviewer": "p/reviewer"}
 
 func frontmatter(t *testing.T, text string) map[string]any {
 	t.Helper()
@@ -54,13 +54,18 @@ func TestAgentsRender(t *testing.T) {
 		if fm["model"] != models[a.Profile] {
 			t.Errorf("%s: model %v", a.Name, fm["model"])
 		}
-		cl, err := render.ClaudeAgent(a, agents, values, render.Models{"planner": "opus", "executor": "haiku", "reviewer": "sonnet"}, servers)
+		claudeModels := render.Models{"planner": "opus", "analyst": "sonnet", "executor": "sonnet", "scout": "haiku", "reviewer": "opus"}
+		cl, err := render.ClaudeAgent(a, agents, values, claudeModels, render.Efforts{"planner": "high", "scout": ""}, servers)
 		if err != nil {
 			t.Fatalf("%s claude: %v", a.Name, err)
 		}
 		cfm := frontmatter(t, cl)
-		if cfm["name"] != a.Name || cfm["description"] == "" || cfm["tools"] == "" {
+		if cfm["name"] != a.Name || cfm["description"] == "" || cfm["tools"] == "" || cfm["model"] != claudeModels[a.Profile] {
 			t.Errorf("%s: incomplete Claude frontmatter %v", a.Name, cfm)
+		}
+		// Only profiles with an effort get the field; empty keeps the session's.
+		if want := map[string]any{"planner": "high"}[a.Profile]; cfm["effort"] != want {
+			t.Errorf("%s (%s): effort %v, want %v", a.Name, a.Profile, cfm["effort"], want)
 		}
 		for _, text := range []string{oc, cl} {
 			if strings.Contains(text, "@@") || strings.Contains(text, "{{") {

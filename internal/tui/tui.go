@@ -4,6 +4,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -198,6 +199,7 @@ type Model struct {
 	components checklist
 	persona    checklist   // persona choice and concise style
 	values     []string    // chosen model per modelKeys entry; empty until chosen
+	efforts    []string    // effort per modelKeys entry; empty when the target has none
 	modelKeys  [][2]string // target, profile
 	modelFocus int         // row on the models screen; one past the last is Continue
 	modelNote  string
@@ -266,14 +268,25 @@ func New() Model {
 			checked: comps.Concise, section: "Style"},
 	}
 
-	models := map[string]render.Models{}
+	models, efforts := map[string]render.Models{}, map[string]render.Efforts{}
 	if prev != nil && prev.Models != nil {
 		models = prev.Models
 	}
-	// Defaults are filled in once the models are listed, and only if available.
+	if prev != nil && prev.Efforts != nil {
+		efforts = prev.Efforts
+	}
+	// Model defaults are filled in once the models are listed, and only if available.
 	for _, t := range installer.AllTargets {
-		for _, profile := range []string{"planner", "executor", "reviewer"} {
+		for _, profile := range render.Profiles {
+			effort := ""
+			if defaults, ok := installer.DefaultEfforts[t]; ok {
+				effort = defaults[profile]
+				if e := efforts[t][profile]; e != "" {
+					effort = e
+				}
+			}
 			m.values = append(m.values, models[t][profile])
+			m.efforts = append(m.efforts, effort)
 			m.modelKeys = append(m.modelKeys, [2]string{t, profile})
 		}
 	}
@@ -333,7 +346,14 @@ func (m Model) options() installer.Options {
 	if comps["persona-architect"] {
 		opts.Components.Persona = "architect"
 	}
+	opts.Efforts = map[string]render.Efforts{}
 	for i, k := range m.modelKeys {
+		if m.efforts[i] != "" {
+			if opts.Efforts[k[0]] == nil {
+				opts.Efforts[k[0]] = render.Efforts{}
+			}
+			opts.Efforts[k[0]][k[1]] = m.efforts[i]
+		}
 		if opts.Models[k[0]] == nil {
 			opts.Models[k[0]] = render.Models{}
 		}
@@ -717,6 +737,10 @@ func (m Model) handleKey(msg tea.KeyMsg, key string) (tea.Model, tea.Cmd) {
 			if m.modelFocus < len(vis) {
 				m.modelFocus++
 			}
+		case "left", "right", "h", "l":
+			if m.modelFocus < len(vis) && m.efforts[vis[m.modelFocus]] != "" {
+				m.efforts[vis[m.modelFocus]] = cycle(installer.EffortLevels, m.efforts[vis[m.modelFocus]], key == "right" || key == "l")
+			}
 		case "enter", " ":
 			if !m.modelsReady() {
 				return m, nil
@@ -808,7 +832,7 @@ func (m Model) View() string {
 		}
 		b.WriteString(help("↑/↓ move · space choose · enter next · esc back"))
 	case scModels:
-		b.WriteString(title.Render("Models") + subtle.Render("  (4/5) planner: orchestrators and planning · executor: worker, device, apply · reviewer: review, verify") + "\n\n")
+		b.WriteString(title.Render("Models") + subtle.Render("  (4/5) one model per role; the panel explains what each role needs") + "\n\n")
 		switch {
 		case !m.modelsReady():
 			b.WriteString(m.spin.View() + " Listing the available models…\n")
@@ -816,12 +840,19 @@ func (m Model) View() string {
 			b.WriteString(m.pickerView())
 		default:
 			vis := m.visibleModels()
+			valueWidth := len("choose a model")
+			for _, i := range vis {
+				valueWidth = max(valueWidth, len(m.values[i]))
+			}
 			for n, i := range vis {
 				k := m.modelKeys[i]
 				label := fmt.Sprintf("%-12s %-9s", installer.TargetLabels[k[0]], k[1])
-				value := m.values[i]
-				if value == "" {
-					value = warnSty.Render("choose a model")
+				value := fmt.Sprintf("%-*s", valueWidth, m.values[i])
+				if m.values[i] == "" {
+					value = warnSty.Render(fmt.Sprintf("%-*s", valueWidth, "choose a model"))
+				}
+				if m.efforts[i] != "" {
+					value += subtle.Render("  effort ") + m.efforts[i]
 				}
 				if n == m.modelFocus {
 					b.WriteString(selected.Render("› "+label) + " " + value + "\n")
@@ -839,7 +870,15 @@ func (m Model) View() string {
 			if m.modelNote != "" {
 				b.WriteString("\n" + warnSty.Render(m.modelNote) + "\n")
 			}
-			b.WriteString(help("↑/↓ move · enter choose · esc back"))
+			if m.modelFocus < len(vis) {
+				k := m.modelKeys[vis[m.modelFocus]]
+				guide := profileGuide[k[1]]
+				if m.efforts[vis[m.modelFocus]] != "" {
+					guide = append(append([]string{}, guide...), "", "←/→ changes the effort; auto keeps your session's level.")
+				}
+				b.WriteString("\n" + box.Render(strings.Join(guide, "\n")) + "\n")
+			}
+			b.WriteString(help("↑/↓ move · enter choose model · ←/→ effort · esc back"))
 		}
 	case scReview:
 		b.WriteString(title.Render("Review") + subtle.Render("  (5/5)") + "\n\n" + box.Render(m.reviewView()) + "\n\n")
@@ -913,6 +952,55 @@ func (m Model) View() string {
 		b.WriteString(help("enter menu · q quit"))
 	}
 	return b.String() + "\n"
+}
+
+// profileGuide explains what each model role does and what suits it; the
+// choice stays the user's.
+var profileGuide = map[string][]string{
+	"planner": {
+		"Planner: orchestrators, sdd-spec, sdd-clarify, sdd-plan.",
+		"Decides what to build and how. A bad plan compounds into a bad",
+		"implementation, so this is where quality pays most.",
+		"",
+		"Suits: your strongest model, high effort.",
+	},
+	"analyst": {
+		"Analyst: sdd-discovery, sdd-constitution, sdd-tasks.",
+		"Understands the project and structures the work, following the plan.",
+		"",
+		"Suits: a balanced model, medium effort.",
+	},
+	"executor": {
+		"Executor: android-worker, sdd-apply.",
+		"Implements closed, already-designed tasks: the thinking happened in the plan.",
+		"",
+		"Suits: a balanced model, low effort. The cheapest model only for trivial edits.",
+	},
+	"scout": {
+		"Scout: android-explore, android-device.",
+		"Searches code and runs device checks; speed matters more than depth.",
+		"",
+		"Suits: your fastest, cheapest model, low effort.",
+	},
+	"reviewer": {
+		"Reviewer: android-review, sdd-verify.",
+		"Checks changes against the task. A model of a different family than the",
+		"executor catches different mistakes than the one that wrote the code.",
+		"",
+		"Suits: a strong model, ideally another family; medium effort.",
+	},
+}
+
+// cycle returns the value after (or before) current in values, wrapping around.
+func cycle(values []string, current string, forward bool) string {
+	i := slices.Index(values, current)
+	if forward {
+		return values[(i+1)%len(values)]
+	}
+	if i <= 0 {
+		return values[len(values)-1]
+	}
+	return values[i-1]
 }
 
 // personaDetails explain the option under the cursor on the persona step.
@@ -1117,26 +1205,31 @@ func (m Model) reviewView() string {
 	}
 	b.WriteString("\n" + section.Render("Persona") + "\n  " + persona + subtle.Render(" · ") + style + " replies\n")
 
-	// Models as a table: one row per assistant, one column per profile.
-	profiles := []string{"planner", "executor", "reviewer"}
+	// Models as a table: one row per profile, one column per assistant; the
+	// effort follows the model where the assistant has one.
+	cell := func(t, p string) string {
+		if e := opts.Efforts[t][p]; e != "" {
+			return opts.Models[t][p] + " · " + e
+		}
+		return opts.Models[t][p]
+	}
 	widths := map[string]int{}
-	labelW := 0
 	for _, t := range opts.Targets {
-		labelW = max(labelW, len(installer.TargetLabels[t]))
-		for _, p := range profiles {
-			widths[p] = max(widths[p], len(p), len(opts.Models[t][p]))
+		widths[t] = len(installer.TargetLabels[t])
+		for _, p := range render.Profiles {
+			widths[t] = max(widths[t], len(cell(t, p)))
 		}
 	}
 	b.WriteString("\n" + section.Render("Models") + "\n")
-	head := fmt.Sprintf("  %-*s", labelW, "")
-	for _, p := range profiles {
-		head += fmt.Sprintf("  %-*s", widths[p], p)
+	head := fmt.Sprintf("  %-9s", "")
+	for _, t := range opts.Targets {
+		head += fmt.Sprintf("  %-*s", widths[t], installer.TargetLabels[t])
 	}
 	b.WriteString(subtle.Render(strings.TrimRight(head, " ")) + "\n")
-	for _, t := range opts.Targets {
-		row := fmt.Sprintf("  %-*s", labelW, installer.TargetLabels[t])
-		for _, p := range profiles {
-			row += fmt.Sprintf("  %-*s", widths[p], opts.Models[t][p])
+	for _, p := range render.Profiles {
+		row := "  " + subtle.Render(fmt.Sprintf("%-9s", p))
+		for _, t := range opts.Targets {
+			row += fmt.Sprintf("  %-*s", widths[t], cell(t, p))
 		}
 		b.WriteString(strings.TrimRight(row, " ") + "\n")
 	}

@@ -29,8 +29,14 @@ func (openCode) flagPrefix() string { return "" }
 func (openCode) steps() int         { return 4 }
 
 func (openCode) defaultModels() render.Models {
-	return render.Models{"planner": "github-copilot/claude-opus-5.5", "executor": "github-copilot/claude-haiku-5.5", "reviewer": "github-copilot/gpt-5.6-terra"}
+	return render.Models{"planner": "github-copilot/claude-opus-5.5", "analyst": "github-copilot/claude-sonnet-5.5",
+		"executor": "github-copilot/claude-sonnet-5.5", "scout": "github-copilot/claude-haiku-5.5",
+		"reviewer": "github-copilot/gpt-5.6-terra"}
 }
+
+// defaultEfforts is nil: OpenCode sets reasoning per model variant, whose
+// names depend on each model; a variant can go in the model ID (model#high).
+func (openCode) defaultEfforts() render.Efforts { return nil }
 
 func (openCode) nextStep() string {
 	return "OpenCode: restart it (and `opencode service restart` from a new terminal), connect your provider with /connect, and pick sdd-orchestrator or android-orchestrator."

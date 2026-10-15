@@ -45,36 +45,53 @@ func TestModelsScreen(t *testing.T) {
 	next, _ := m.Update(modelsMsg{lists: map[string][]string{"opencode": {"openai/gpt-5.5", "openai/gpt-5.6-terra"}, "claude": installer.ClaudeModels}})
 	m = next.(Model)
 	opts := m.options()
-	if opts.Models["claude"]["planner"] != "opus" || opts.Models["claude"]["reviewer"] != "sonnet" {
-		t.Errorf("Claude defaults not preselected: %v", opts.Models["claude"])
+	if opts.Models["claude"]["planner"] != "opus" || opts.Models["claude"]["scout"] != "haiku" || opts.Efforts["claude"]["planner"] != "high" {
+		t.Errorf("Claude defaults not preselected: %v %v", opts.Models["claude"], opts.Efforts["claude"])
 	}
 	if v := opts.Models["opencode"]["planner"]; v != "" {
 		t.Errorf("unlisted OpenCode default preselected: %q", v)
 	}
+	if _, ok := opts.Efforts["opencode"]; ok {
+		t.Error("OpenCode rows should have no effort")
+	}
 
 	// Continue is refused while a row has no model.
-	m = press(t, m, down, down, down, down, down, down, enter)
+	m.modelFocus = len(m.visibleModels())
+	m = press(t, m, enter)
 	if m.screen != scModels || m.modelNote == "" {
 		t.Fatalf("continued without models: screen %d", m.screen)
 	}
 
-	// Planner: filter and choose.
+	// OpenCode rows, in profile order: planner, analyst, executor, scout, reviewer.
 	m.modelFocus = 0
+	if view := m.View(); !strings.Contains(view, "A bad plan compounds") {
+		t.Errorf("planner guide missing:\n%s", view)
+	}
 	m = press(t, m, enter, typed("terra"))
 	if got := m.pickOptions(); len(got) != 1 {
 		t.Fatalf("filtered options: %v", got)
 	}
-	m = press(t, m, enter)
-	// Executor: Custom… with a typed ID.
-	m = press(t, m, down, enter, down, down, enter, typed("other/model"), enter)
-	// Reviewer: first listed model.
-	m = press(t, m, down, enter, enter)
+	m = press(t, m, enter)                                                       // planner: filtered
+	m = press(t, m, down, enter, down, down, enter, typed("other/model"), enter) // analyst: Custom…
+	for range 3 {                                                                // executor, scout, reviewer: first listed
+		m = press(t, m, down, enter, enter)
+	}
 	if m.picking {
 		t.Fatal("picker still open")
 	}
 	got := m.options().Models["opencode"]
-	if got["planner"] != "openai/gpt-5.6-terra" || got["executor"] != "other/model" || got["reviewer"] != "openai/gpt-5.5" {
+	if got["planner"] != "openai/gpt-5.6-terra" || got["analyst"] != "other/model" || got["reviewer"] != "openai/gpt-5.5" {
 		t.Errorf("OpenCode models: %v", got)
+	}
+
+	// Claude rows carry an effort that ←/→ cycles; the guide mentions it.
+	m = press(t, m, down) // Claude Code planner
+	if view := m.View(); !strings.Contains(view, "effort high") || !strings.Contains(view, "←/→ changes the effort") {
+		t.Errorf("effort not shown:\n%s", view)
+	}
+	m = press(t, m, tea.KeyMsg{Type: tea.KeyRight})
+	if e := m.options().Efforts["claude"]["planner"]; e != "xhigh" {
+		t.Errorf("effort after →: %q", e)
 	}
 
 	m.modelFocus = len(m.visibleModels())

@@ -17,6 +17,9 @@ type Target interface {
 	flagPrefix() string
 	binary() string // command that runs the assistant
 	defaultModels() render.Models
+	// defaultEfforts are the reasoning effort per profile; nil when the
+	// assistant has no per-agent effort.
+	defaultEfforts() render.Efforts
 	// availableModels lists the models it can use, or says why it cannot.
 	availableModels() ([]string, error)
 	// knownModel reports whether model is valid, given the listed ones.
@@ -76,6 +79,20 @@ var DefaultModels = func() map[string]render.Models {
 	}
 	return m
 }()
+
+// DefaultEfforts per target and profile, for the targets with per-agent effort.
+var DefaultEfforts = func() map[string]render.Efforts {
+	m := map[string]render.Efforts{}
+	for _, t := range targets {
+		if e := t.defaultEfforts(); e != nil {
+			m[t.id()] = e
+		}
+	}
+	return m
+}()
+
+// EffortLevels are the effort choices; "auto" keeps the session's level.
+var EffortLevels = []string{"auto", "low", "medium", "high", "xhigh", "max"}
 
 // ModelFlagPrefix is what goes before a target's model flags (--<prefix>planner).
 func ModelFlagPrefix(id string) string {

@@ -2,7 +2,7 @@
   "name": "sdd-tasks",
   "description": "Decomposes an approved plan into dependency-ordered tasks estimated under 30 minutes, with RF links, unchecked checkboxes, and verifiable completion criteria; saves only approved ai/specs/<name>/tasks.md.",
   "mode": "subagent",
-  "profile": "planner",
+  "profile": "analyst",
   "hidden": false,
   "steps": null,
   "rules": [

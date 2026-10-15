@@ -20,7 +20,14 @@ func (claudeCode) flagPrefix() string { return "claude-" }
 func (claudeCode) steps() int         { return 5 }
 
 func (claudeCode) defaultModels() render.Models {
-	return render.Models{"planner": "opus", "executor": "haiku", "reviewer": "sonnet"}
+	return render.Models{"planner": "opus", "analyst": "sonnet", "executor": "sonnet", "scout": "haiku", "reviewer": "opus"}
+}
+
+// defaultEfforts follow the profiles: think hard where mistakes compound
+// (plans, specs), little where the work is mechanical (implementing closed
+// tasks, searching code).
+func (claudeCode) defaultEfforts() render.Efforts {
+	return render.Efforts{"planner": "high", "analyst": "medium", "executor": "low", "scout": "low", "reviewer": "medium"}
 }
 
 func (claudeCode) nextStep() string {
@@ -161,7 +168,7 @@ func (c claudeCode) install(r *run, src *sources, st *TargetState) error {
 	}
 	files := map[string]string{}
 	for _, a := range src.agents {
-		text, err := render.ClaudeAgent(a, src.agents, values, r.opts.Models[c.id()], serverNames)
+		text, err := render.ClaudeAgent(a, src.agents, values, r.opts.Models[c.id()], r.efforts(c.id()), serverNames)
 		if err != nil {
 			return err
 		}
