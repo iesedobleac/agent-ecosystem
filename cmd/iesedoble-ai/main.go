@@ -91,7 +91,7 @@ func install(args []string) {
 	var targets, without, with listFlag
 	fs.Var(&targets, "targets", "assistants: "+strings.Join(installer.AllTargets, ", ")+" (default: detected)")
 	fs.Var(&without, "without", "skip components: sdd, android, skills, plugin, engram, codegraph")
-	fs.Var(&with, "with", "add components that are off by default: subagent-monitor")
+	fs.Var(&with, "with", "add components that are off by default: subagent-monitor, claude-sandbox")
 	persona := fs.String("persona", "architect", "persona added to the global rules: "+strings.Join(installer.Personas, ", "))
 	concise := fs.Bool("concise", true, "caveman-style concise replies (use --concise=false to skip)")
 	models, efforts := map[string]render.Models{}, map[string]render.Efforts{}
@@ -133,6 +133,8 @@ func install(args []string) {
 		switch w {
 		case "subagent-monitor":
 			comps.SubagentMonitor = true
+		case "claude-sandbox":
+			comps.ClaudeSandbox = true
 		default:
 			fail(fmt.Errorf("unknown component %q for --with", w))
 		}

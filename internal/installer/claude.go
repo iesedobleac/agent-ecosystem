@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/iesedobleac/iesedoble-ai/internal/render"
@@ -17,7 +18,7 @@ func (claudeCode) id() string         { return "claude" }
 func (claudeCode) label() string      { return "Claude Code" }
 func (claudeCode) binary() string     { return "claude" }
 func (claudeCode) flagPrefix() string { return "claude-" }
-func (claudeCode) steps() int         { return 6 }
+func (claudeCode) steps() int         { return 7 }
 
 func (claudeCode) defaultModels() render.Models {
 	return render.Models{"planner": "opus", "analyst": "sonnet", "executor": "sonnet", "scout": "haiku", "reviewer": "opus"}
@@ -240,6 +241,16 @@ func (c claudeCode) install(r *run, src *sources, st *TargetState) error {
 		return err
 	}
 
+	r.step("Claude Code: sandbox")
+	want := r.opts.Components.ClaudeSandbox
+	if want && runtime.GOOS == "windows" {
+		r.log.Warn("Claude Code: the sandbox needs macOS, Linux or WSL2; not turned on")
+		want = false
+	}
+	if err := c.setSandbox(r, settingsFile, values, st, want); err != nil {
+		return err
+	}
+
 	r.step("Claude Code: MCP servers")
 	wanted, _, err := r.servers(values)
 	if err != nil {
@@ -317,6 +328,11 @@ func (c claudeCode) uninstall(r *run, st *TargetState) error {
 			}
 		}
 	}
+	if st.Sandbox != nil {
+		if err := c.setSandbox(r, settingsFile, nil, st, false); err != nil {
+			return err
+		}
+	}
 	if st.AutoCompact > 0 {
 		if settings, err := readJSON(settingsFile); err == nil {
 			if current, _ := settings["autoCompactWindow"].(float64); int(current) == st.AutoCompact {
@@ -370,4 +386,115 @@ func (claudeCode) setAutoCompact(r *run, file string, st *TargetState) error {
 	}
 	r.log.OK(msg)
 	return nil
+}
+
+// sandboxEntries are what the agents need around the sandbox: adb talks to
+// devices and Gradle to the network and ~/.gradle, so both run outside it
+// (still asking permission as usual), and the deliverables folder takes the
+// files agents write from the shell, such as screenshots.
+func sandboxEntries(values map[string]string) (excluded, write []string) {
+	excluded = []string{"adb *", values["ANDROID_SDK"] + "/platform-tools/adb *", "./gradlew *"}
+	return excluded, []string{values["DELIVERABLES"]}
+}
+
+// setSandbox turns Claude Code's sandbox on with the agents' entries, or with
+// want false removes what a previous run added. Entries and an enabled flag
+// the user set are left alone.
+func (claudeCode) setSandbox(r *run, file string, values map[string]string, st *TargetState, want bool) error {
+	settings, err := readJSON(file)
+	if err != nil {
+		return err
+	}
+	before, _ := json.Marshal(settings)
+	prev := st.Sandbox
+	if prev == nil {
+		prev = &SandboxState{}
+	}
+	sandbox := object(settings, "sandbox")
+	fsys := object(sandbox, "filesystem")
+	excluded := without(stringList(sandbox["excludedCommands"]), prev.Excluded)
+	write := without(stringList(fsys["allowWrite"]), prev.Write)
+	if prev.Enabled && sandbox["enabled"] == true {
+		delete(sandbox, "enabled")
+	}
+	next := SandboxState{}
+	if want {
+		if sandbox["enabled"] != true {
+			sandbox["enabled"], next.Enabled = true, true
+		}
+		wantExcluded, wantWrite := sandboxEntries(values)
+		for _, e := range wantExcluded {
+			if !contains(excluded, e) {
+				excluded, next.Excluded = append(excluded, e), append(next.Excluded, e)
+			}
+		}
+		for _, w := range wantWrite {
+			if !contains(write, w) {
+				write, next.Write = append(write, w), append(next.Write, w)
+			}
+		}
+	}
+	setList(sandbox, "excludedCommands", excluded)
+	setList(fsys, "allowWrite", write)
+	if len(fsys) == 0 {
+		delete(sandbox, "filesystem")
+	}
+	if len(sandbox) == 0 {
+		delete(settings, "sandbox")
+	}
+	st.Sandbox = nil
+	if next.Enabled || len(next.Excluded) > 0 || len(next.Write) > 0 {
+		st.Sandbox = &next
+	}
+	if after, _ := json.Marshal(settings); string(after) != string(before) {
+		r.backupFile(file)
+		if err := r.writeJSON(file, settings); err != nil {
+			return err
+		}
+	}
+	switch {
+	case want:
+		r.log.OK("Claude Code: sandbox on; adb and Gradle run outside it")
+	case prev.Enabled || len(prev.Excluded) > 0 || len(prev.Write) > 0:
+		r.log.OK("Claude Code: removed the sandbox settings this tool added")
+	default:
+		r.log.OK("Claude Code: sandbox left as is")
+	}
+	return nil
+}
+
+// stringList reads a JSON array of strings, skipping other values.
+func stringList(v any) []string {
+	list, _ := v.([]any)
+	var out []string
+	for _, x := range list {
+		if s, ok := x.(string); ok {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// without returns list minus the values in drop.
+func without(list, drop []string) []string {
+	var out []string
+	for _, x := range list {
+		if !contains(drop, x) {
+			out = append(out, x)
+		}
+	}
+	return out
+}
+
+// setList stores list under key, or removes the key when it is empty.
+func setList(m map[string]any, key string, list []string) {
+	if len(list) == 0 {
+		delete(m, key)
+		return
+	}
+	out := make([]any, len(list))
+	for i, s := range list {
+		out[i] = s
+	}
+	m[key] = out
 }

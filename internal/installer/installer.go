@@ -46,6 +46,9 @@ type Components struct {
 	// SubagentMonitor keeps the OpenCode subagent statusline that `engram setup`
 	// adds to tui.json; off removes it.
 	SubagentMonitor bool `json:"subagentMonitor"`
+	// ClaudeSandbox turns on Claude Code's sandbox for shell commands, with
+	// the exceptions the agents need.
+	ClaudeSandbox bool `json:"claudeSandbox"`
 	// Persona is the voice added once to the global rules: one of Personas.
 	// Installs recorded before it existed have it empty and keep "architect",
 	// the persona the orchestrators used to carry.
@@ -122,9 +125,19 @@ type TargetState struct {
 	Deny  []string          `json:"deny,omitempty"`
 	// AutoCompact is the auto-compact window this tool wrote, so it can be
 	// removed later without touching one set by the user.
-	AutoCompact int    `json:"autoCompact,omitempty"`
-	Version     string `json:"version"`
-	Installed   string `json:"installed"`
+	AutoCompact int `json:"autoCompact,omitempty"`
+	// Sandbox is what this tool added to Claude Code's sandbox settings.
+	Sandbox   *SandboxState `json:"sandbox,omitempty"`
+	Version   string        `json:"version"`
+	Installed string        `json:"installed"`
+}
+
+// SandboxState records the sandbox settings this tool added, so they can be
+// removed without touching the user's own.
+type SandboxState struct {
+	Enabled  bool     `json:"enabled,omitempty"` // this tool set sandbox.enabled
+	Excluded []string `json:"excluded,omitempty"`
+	Write    []string `json:"write,omitempty"`
 }
 
 // State is ~/.iesedoble-ai/state.json.

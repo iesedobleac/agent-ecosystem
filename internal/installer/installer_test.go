@@ -803,3 +803,64 @@ func TestRulesBlockBudget(t *testing.T) {
 		}
 	}
 }
+
+func TestClaudeSandbox(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the sandbox is not turned on on native Windows")
+	}
+	opts := testOptions(t.TempDir())
+	opts.Targets = []string{"claude"}
+	file := filepath.Join(opts.ClaudeDir, "settings.json")
+	sandbox := func() map[string]any {
+		settings, _ := readJSON(file)
+		s, _ := settings["sandbox"].(map[string]any)
+		return s
+	}
+	install := func() {
+		t.Helper()
+		if _, err := Install(opts, testLogger{t}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	install()
+	if s := sandbox(); s != nil {
+		t.Fatalf("sandbox written while off: %v", s)
+	}
+
+	// The user's own entries survive every step.
+	if err := os.MkdirAll(opts.ClaudeDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(file, []byte(`{"sandbox": {"excludedCommands": ["docker *"]}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	opts.Components.ClaudeSandbox = true
+	install()
+	s := sandbox()
+	excluded := stringList(s["excludedCommands"])
+	fsys, _ := s["filesystem"].(map[string]any)
+	if s["enabled"] != true || !contains(excluded, "docker *") || !contains(excluded, "./gradlew *") ||
+		!contains(excluded, "adb *") || len(stringList(fsys["allowWrite"])) != 1 {
+		t.Errorf("sandbox on: %v", s)
+	}
+	install() // idempotent
+	if got := stringList(sandbox()["excludedCommands"]); len(got) != len(excluded) {
+		t.Errorf("entries duplicated: %v", got)
+	}
+
+	opts.Components.ClaudeSandbox = false
+	install()
+	if s := sandbox(); len(s) != 1 || fmt.Sprint(s["excludedCommands"]) != "[docker *]" {
+		t.Errorf("sandbox off should keep only the user's entry: %v", s)
+	}
+
+	opts.Components.ClaudeSandbox = true
+	install()
+	if err := Uninstall(Options{Targets: opts.Targets, Home: opts.Home, ClaudeDir: opts.ClaudeDir}, testLogger{t}); err != nil {
+		t.Fatal(err)
+	}
+	if s := sandbox(); len(s) != 1 || fmt.Sprint(s["excludedCommands"]) != "[docker *]" {
+		t.Errorf("uninstall should keep only the user's entry: %v", s)
+	}
+}

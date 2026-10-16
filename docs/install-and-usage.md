@@ -111,7 +111,7 @@ Choose **Install or update** and go through the five steps. Move with `↑`/`↓
 `space`, continue with `enter`, go back with `esc`.
 
 1. **Assistants.** The ones found on this machine are marked as detected and preselected.
-2. **Components.** All but the subagent monitor are selected by default:
+2. **Components.** All but the subagent monitor and the Claude sandbox are selected by default:
 
    | Component | What it adds |
    |---|---|
@@ -122,6 +122,7 @@ Choose **Install or update** and go through the five steps. Move with `↑`/`↓
    | Engram memory | Persistent memory MCP server and plugin |
    | CodeGraph | Code graph MCP server |
    | Subagent monitor | Keeps the OpenCode subagent statusline that Engram's setup adds. Off by default: the installer removes it from `tui.json` and `cli.json`, after a backup |
+   | Claude sandbox | Turns on Claude Code's sandbox: shell commands write only inside the project and have no network, so they run without permission prompts. `adb` and `./gradlew` run outside it and ask as usual. Off by default; needs macOS, Linux (with `bubblewrap` and `socat`) or WSL2. Run `/sandbox` in Claude Code to check it |
 
 3. **Persona.** How your assistant talks to you, added once to `AGENTS.md` / `CLAUDE.md`. A panel
    explains the option under the cursor, with what it changes and what it costs:
@@ -178,7 +179,7 @@ The same install, from the command line:
 iesedoble-ai install                       # detected assistants, everything, default models
 iesedoble-ai install --dry-run             # show what would change
 iesedoble-ai install --targets claude --without android,codegraph
-iesedoble-ai install --with subagent-monitor
+iesedoble-ai install --with subagent-monitor,claude-sandbox
 iesedoble-ai install --persona none --concise=false   # assistant's default voice
 iesedoble-ai install --planner openai/gpt-5.5 --claude-reviewer opus
 iesedoble-ai install --claude-executor haiku --claude-executor-effort low

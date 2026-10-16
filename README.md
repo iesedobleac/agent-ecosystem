@@ -113,7 +113,7 @@ go install github.com/iesedobleac/iesedoble-ai/cmd/iesedoble-ai@latest
 | 🤖 **Agents** | 14 agents with per-agent permissions; orchestrators are primary agents | 14 subagents with tool lists; run an orchestrator with `claude --agent <name>` |
 | 📚 **Skills** | `sdd-workflow`, `skill-generator` | Same |
 | 📏 **Rules** | Managed block in `AGENTS.md` | Managed block in `CLAUDE.md` |
-| 🛡 **Safety** | Per-agent shell rules | Session deny rules for `git push`, `git reset --hard`, `git clean`, `git rebase` |
+| 🛡 **Safety** | Per-agent shell rules | Session deny rules for `git push`, `git reset --hard`, `git clean`, `git rebase`; optional sandbox for shell commands |
 | 🧠 **Memory** | [Engram](https://github.com/Gentleman-Programming/engram) MCP + `engram setup opencode` | Engram MCP + `engram setup claude-code` |
 | 🕸 **Code graph** | [CodeGraph](https://www.npmjs.com/package/@colbymchenry/codegraph) MCP | Same |
 | 🔔 **Plugin** | Context warning: past 200k tokens of context (then every +100k), offers to compact now or continue in a new session | Not needed |
@@ -122,6 +122,12 @@ go install github.com/iesedobleac/iesedoble-ai/cmd/iesedoble-ai@latest
 Every component can be switched off in the menu or with `--without`. Engram's setup also adds an
 OpenCode subagent statusline; the installer removes it from `tui.json` and `cli.json` unless you
 select **Subagent monitor** (`--with subagent-monitor`).
+
+**Claude sandbox** (`--with claude-sandbox`, off by default) turns on Claude Code's
+[sandbox](https://code.claude.com/docs/en/sandboxing): shell commands can only write inside the
+project and have no network, so Claude Code runs them without asking. `adb` and `./gradlew` run
+outside it and ask as usual, and the deliverables folder stays writable. It needs macOS, Linux or
+WSL2; on Linux, install `bubblewrap` and `socat`.
 
 ## 🤖 The agents
 
@@ -204,7 +210,7 @@ iesedoble-ai uninstall   # remove everything it installed
 |---|---|
 | `--targets` | `opencode`, `claude` (default: the ones found on this machine) |
 | `--without` | Skip components: `sdd`, `android`, `skills`, `plugin`, `engram`, `codegraph` |
-| `--with` | Add components that are off by default: `subagent-monitor` |
+| `--with` | Add components that are off by default: `subagent-monitor`, `claude-sandbox` |
 | `--persona` | `architect` (default) or `none` |
 | `--concise` | Caveman-style concise replies (default on; `--concise=false` to skip) |
 | `--planner`, `--analyst`, `--executor`, `--scout`, `--reviewer` | OpenCode model per role |

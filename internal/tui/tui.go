@@ -257,6 +257,7 @@ func New() Model {
 		{key: "engram", label: "Engram memory", desc: "persistent memory MCP and plugin", checked: comps.Engram},
 		{key: "codegraph", label: "CodeGraph", desc: "code graph MCP", checked: comps.CodeGraph},
 		{key: "subagent-monitor", label: "Subagent monitor", desc: "OpenCode subagent statusline that Engram adds; off removes it", checked: comps.SubagentMonitor},
+		{key: "claude-sandbox", label: "Claude sandbox", desc: "Claude Code: shell commands sandboxed, fewer permission prompts; adb and Gradle run outside it (not on native Windows)", checked: comps.ClaudeSandbox},
 	}
 	m.persona.items = []item{
 		{key: "persona-architect", label: "Architect",
@@ -343,7 +344,7 @@ func (m Model) options() installer.Options {
 	}
 	opts.Components = installer.Components{SDD: comps["sdd"], Android: comps["android"], Skills: comps["skills"],
 		Plugin: comps["plugin"], Engram: comps["engram"], CodeGraph: comps["codegraph"],
-		SubagentMonitor: comps["subagent-monitor"], Persona: "none", Concise: comps["concise"]}
+		SubagentMonitor: comps["subagent-monitor"], ClaudeSandbox: comps["claude-sandbox"], Persona: "none", Concise: comps["concise"]}
 	if comps["persona-architect"] {
 		opts.Components.Persona = "architect"
 	}
