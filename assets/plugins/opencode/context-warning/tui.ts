@@ -1,11 +1,12 @@
 import { Plugin } from "@opencode/plugin/tui"
 
-// Shows a toast when a root session's context passes 200k tokens, and again
-// every additional 100k, as a hint to continue in a new session.
+// When a root session's context passes 200k tokens, and again every additional
+// 100k, offers to compact it now, continue in a new session, or keep going.
 const FIRST_WARNING = 200_000
 const STEP = 100_000
 
 type Tokens = { input?: number; cache?: { read?: number; write?: number } }
+type Choice = "compact" | "new" | "keep"
 
 function contextSize(tokens: Tokens | undefined): number {
   if (!tokens) return 0
@@ -27,6 +28,44 @@ export default Plugin.define({
   setup(context) {
     const warned = new Map<string, number>()
 
+    const failed = (title: string, error: unknown) =>
+      context.ui.toast.show({
+        title,
+        message: error instanceof Error ? error.message : String(error),
+        variant: "error",
+        duration: 10_000,
+      })
+
+    const compact = async (sessionID: string) => {
+      try {
+        await context.client.session.compact({ sessionID })
+        context.ui.toast.show({
+          title: "Compacting",
+          message: "The history is being summarized; the thread continues in this session.",
+          variant: "info",
+          duration: 5_000,
+        })
+      } catch (error) {
+        failed("Compaction failed", error)
+      }
+    }
+
+    // A new session in the same place, with the same agent and model, the
+    // way OpenCode's own prompt creates one.
+    const startNew = async (sessionID: string) => {
+      const current = context.data.session.get(sessionID) as any
+      try {
+        const created = await context.client.session.create({
+          location: current?.location,
+          agent: current?.agent,
+          model: current?.model,
+        } as any)
+        context.ui.router.navigate({ type: "session", sessionID: (created as any).id })
+      } catch (error) {
+        failed("Could not start a new session", error)
+      }
+    }
+
     const check = async (sessionID: string) => {
       const root = context.data.session.root(sessionID)
       if (root && root !== sessionID) return
@@ -38,12 +77,20 @@ export default Plugin.define({
       if ((warned.get(sessionID) ?? -1) >= level) return
       warned.set(sessionID, level)
       const thousands = Math.round(size / 1000)
-      context.ui.toast.show({
-        title: "Contexto grande",
-        message: `Esta sesión ya usa ~${thousands}k tokens de contexto. Considera guardar el handoff y continuar en una sesión nueva.`,
-        variant: "warning",
-        duration: 15_000,
+      const choice = await context.ui.dialog.select<Choice>({
+        title: `This session uses ~${thousands}k tokens of context`,
+        options: [
+          { title: "Compact now", value: "compact", description: "Summarize the history and keep working in this session" },
+          {
+            title: "Start a new session",
+            value: "new",
+            description: "Fresh context, same project, agent and model; Engram keeps what was saved",
+          },
+          { title: "Keep going", value: "keep", description: `Ask again at ~${thousands + STEP / 1000}k` },
+        ],
       })
+      if (choice === "compact") await compact(sessionID)
+      if (choice === "new") await startNew(sessionID)
     }
 
     const stop = context.data.on("session.execution.succeeded", (event: any) => {

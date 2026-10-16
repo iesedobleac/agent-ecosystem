@@ -116,7 +116,7 @@ go install github.com/iesedobleac/iesedoble-ai/cmd/iesedoble-ai@latest
 | 🛡 **Safety** | Per-agent shell rules | Session deny rules for `git push`, `git reset --hard`, `git clean`, `git rebase` |
 | 🧠 **Memory** | [Engram](https://github.com/Gentleman-Programming/engram) MCP + `engram setup opencode` | Engram MCP + `engram setup claude-code` |
 | 🕸 **Code graph** | [CodeGraph](https://www.npmjs.com/package/@colbymchenry/codegraph) MCP | Same |
-| 🔔 **Plugin** | Context warning: a toast past 200k tokens, then every +100k | Not needed |
+| 🔔 **Plugin** | Context warning: past 200k tokens of context (then every +100k), offers to compact now or continue in a new session | Not needed |
 | 🎭 **Persona** | Optional, added once to `AGENTS.md`: **Architect** (verifies before agreeing, challenges with evidence) or none, plus the **Concise** style that cuts output tokens | Same, in `CLAUDE.md` |
 
 Every component can be switched off in the menu or with `--without`. Engram's setup also adds an
@@ -244,6 +244,8 @@ A model the assistant does not list produces a warning, and the install goes on.
   `sync` reuses it and `uninstall` removes what it lists.
 - 🧾 **Logs.** Every install, sync and uninstall leaves a log in `~/.iesedoble-ai/logs/` (the
   last 20 are kept).
+- 💸 **Save tokens.** Short sessions, `/compact` and lower effort for simple tasks save more than any
+  setting; see [Save tokens day to day](docs/install-and-usage.md#save-tokens-day-to-day).
 - ⚠️ **`opencode.jsonc` comments are lost.** The file is rewritten as plain JSON, after a backup.
 
 ## 🛠 Development

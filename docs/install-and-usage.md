@@ -9,6 +9,7 @@ a section says otherwise; on Windows, run them in PowerShell.
 - [Install](#install)
 - [First run](#first-run)
 - [Use the agents](#use-the-agents)
+- [Save tokens day to day](#save-tokens-day-to-day)
 - [Keep it up to date](#keep-it-up-to-date)
 - [Coming from agent-ecosystem](#coming-from-agent-ecosystem)
 - [Check your install](#check-your-install)
@@ -117,7 +118,7 @@ Choose **Install or update** and go through the five steps. Move with `↑`/`↓
    | SDD flow | `sdd-orchestrator`, its phase agents and the `sdd-workflow` skill |
    | Android orchestrator | `android-orchestrator` (its subagents also come with the SDD flow) |
    | General skills | `skill-generator` |
-   | Context warning | OpenCode toast when a session passes 200k tokens |
+   | Context warning | In OpenCode, past 200k tokens of context (then every +100k), asks whether to compact now, start a new session with the same agent and model, or keep going |
    | Engram memory | Persistent memory MCP server and plugin |
    | CodeGraph | Code graph MCP server |
    | Subagent monitor | Keeps the OpenCode subagent statusline that Engram's setup adds. Off by default: the installer removes it from `tui.json` and `cli.json`, after a backup |
@@ -214,6 +215,24 @@ codegraph init
   functional specs, a technical plan, tasks, implementation one task at a time, and verification.
   Each phase runs when you ask for it, and nothing is saved without your approval.
 - **`android-orchestrator`** for small and medium Android tasks without SDD phases.
+
+## Save tokens day to day
+
+Every turn sends the whole conversation to the model again: files read, command output, earlier
+answers. Caching makes repeats cheaper, but a long session still costs more on every message and
+fills the context. These habits save more than any setting:
+
+| Habit | Claude Code | OpenCode |
+|---|---|---|
+| One task, one session: start fresh when you change topic | `/clear` | `ctrl+x n` (new session) |
+| Compact a long session: summarizes the history, keeps the thread | `/compact` | `/compact` or `ctrl+x c` |
+| See what uses the context and what it costs | `/context`, `/usage` | `opencode stats --cost` |
+| Less reasoning for simple tasks | `/effort low` | a model variant, such as `provider/model#low` |
+| Let subagents explore: their context stays out of your session | the orchestrators already delegate | same |
+
+In OpenCode, the **Context warning** plugin does the reminding: past 200k tokens it asks whether
+to compact now or continue in a new session, and asks again every 100k if you keep going. What
+the agents saved to Engram is still there in the new session.
 
 ## Keep it up to date
 

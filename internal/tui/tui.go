@@ -252,7 +252,7 @@ func New() Model {
 		{key: "sdd", label: "SDD flow", desc: "sdd-orchestrator, spec/plan/tasks/apply/verify agents, sdd-workflow skill", checked: comps.SDD},
 		{key: "android", label: "Android orchestrator", desc: "android-orchestrator (its explore/worker/review/device subagents come with either)", checked: comps.Android},
 		{key: "skills", label: "General skills", desc: "skill-generator", checked: comps.Skills},
-		{key: "plugin", label: "Context warning", desc: "OpenCode toast when a session passes 200k tokens", checked: comps.Plugin},
+		{key: "plugin", label: "Context warning", desc: "OpenCode: past 200k tokens, offers to compact or start a new session", checked: comps.Plugin},
 		{key: "engram", label: "Engram memory", desc: "persistent memory MCP and plugin", checked: comps.Engram},
 		{key: "codegraph", label: "CodeGraph", desc: "code graph MCP", checked: comps.CodeGraph},
 		{key: "subagent-monitor", label: "Subagent monitor", desc: "OpenCode subagent statusline that Engram adds; off removes it", checked: comps.SubagentMonitor},
