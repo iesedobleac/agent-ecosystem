@@ -775,3 +775,31 @@ func TestClaudeAutoCompact(t *testing.T) {
 		t.Errorf("window out of range: %v", err)
 	}
 }
+
+// rulesTokenBudget caps the global rules block, loaded in every session of
+// every project. Raise it only on purpose: each token is paid on every session.
+const rulesTokenBudget = 2_500
+
+func TestRulesBlockBudget(t *testing.T) {
+	opts := testOptions(t.TempDir()) // every component, persona and concise style
+	if _, err := Install(opts, testLogger{t}); err != nil {
+		t.Fatal(err)
+	}
+	for _, file := range []string{filepath.Join(opts.ConfigDir, "AGENTS.md"), filepath.Join(opts.ClaudeDir, "CLAUDE.md")} {
+		data, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		text := string(data)
+		start, end := strings.Index(text, markStart), strings.Index(text, markEnd)
+		if start < 0 || end < start {
+			t.Fatalf("%s: no rules block", file)
+		}
+		// About four characters per token in English prose.
+		if tokens := (end - start) / 4; tokens > rulesTokenBudget {
+			t.Errorf("%s: rules block is ~%d tokens, over the %d budget", file, tokens, rulesTokenBudget)
+		} else {
+			t.Logf("%s: ~%d tokens", filepath.Base(file), tokens)
+		}
+	}
+}
