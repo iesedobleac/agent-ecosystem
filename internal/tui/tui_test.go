@@ -22,6 +22,7 @@ func press(t *testing.T, m Model, keys ...tea.KeyMsg) Model {
 var (
 	enter = tea.KeyMsg{Type: tea.KeyEnter}
 	down  = tea.KeyMsg{Type: tea.KeyDown}
+	esc   = tea.KeyMsg{Type: tea.KeyEsc}
 )
 
 func typed(s string) tea.KeyMsg { return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(s)} }
@@ -56,7 +57,7 @@ func TestModelsScreen(t *testing.T) {
 	}
 
 	// Continue is refused while a row has no model.
-	m.modelFocus = m.continueRow()
+	m.modelFocus = len(m.visibleModels())
 	m = press(t, m, enter)
 	if m.screen != scModels || m.modelNote == "" {
 		t.Fatalf("continued without models: screen %d", m.screen)
@@ -94,18 +95,9 @@ func TestModelsScreen(t *testing.T) {
 		t.Errorf("effort after →: %q", e)
 	}
 
-	// The auto-compact row follows the models; ←/→ cycles the window.
-	m = press(t, m, down, down, down, down, down)
-	if !m.onCompactRow() || !strings.Contains(m.View(), "Claude Code's default") {
-		t.Fatalf("auto-compact row not focused:\n%s", m.View())
-	}
-	m = press(t, m, tea.KeyMsg{Type: tea.KeyRight}, tea.KeyMsg{Type: tea.KeyRight})
-	if w := m.options().ClaudeAutoCompact; w != 150_000 {
-		t.Errorf("auto-compact after →→: %d", w)
-	}
-
-	m = press(t, m, down, enter)
-	if m.screen != scReview {
+	m.modelFocus = len(m.visibleModels())
+	m = press(t, m, enter)
+	if m.screen != scSettings {
 		t.Errorf("screen %d after Continue", m.screen)
 	}
 }
@@ -250,7 +242,7 @@ func TestPersonaStep(t *testing.T) {
 		t.Fatalf("components should lead to the persona step, got %d", m.screen)
 	}
 	view := m.View()
-	for _, want := range []string{"(3/5)", "Architect", "verifies before agreeing and corrects you with evidence", "~300 tokens"} {
+	for _, want := range []string{"(3/6)", "Architect", "verifies before agreeing and corrects you with evidence", "~300 tokens"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("persona step missing %q:\n%s", want, view)
 		}
@@ -267,5 +259,50 @@ func TestPersonaStep(t *testing.T) {
 		if it.group != "" || it.key == "concise" {
 			t.Errorf("components still list %q", it.key)
 		}
+	}
+}
+
+func TestSettingsScreen(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	m := New()
+	for i := range m.targets.items {
+		m.targets.items[i].checked = true
+	}
+	m.screen = scSettings
+
+	// Claude Code first, then OpenCode: sandbox, auto-compact, subagent monitor.
+	view := m.View()
+	for _, want := range []string{"(5/6)", "Claude Code", "Sandbox", "Auto-compact", "OpenCode", "Subagent monitor", "/sandbox"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("settings view lacks %q:\n%s", want, view)
+		}
+	}
+	m = press(t, m, typed(" "))                                                           // sandbox on
+	m = press(t, m, down, tea.KeyMsg{Type: tea.KeyRight}, tea.KeyMsg{Type: tea.KeyRight}) // 150k
+	m = press(t, m, down, typed(" "))                                                     // monitor on
+	opts := m.options()
+	if !opts.Components.ClaudeSandbox || opts.ClaudeAutoCompact != 150_000 || !opts.Components.SubagentMonitor {
+		t.Errorf("settings: sandbox %v, window %d, monitor %v",
+			opts.Components.ClaudeSandbox, opts.ClaudeAutoCompact, opts.Components.SubagentMonitor)
+	}
+	if !strings.Contains(m.reviewView(), "at 150k tokens") {
+		t.Errorf("review lacks the settings:\n%s", m.reviewView())
+	}
+
+	// Only the selected assistants' settings show.
+	for i := range m.targets.items {
+		m.targets.items[i].checked = m.targets.items[i].key == "opencode"
+	}
+	if rows := m.settingRows(); len(rows) != 1 || rows[0].key != "monitor" {
+		t.Errorf("OpenCode-only rows: %v", rows)
+	}
+
+	m = press(t, m, enter)
+	if m.screen != scReview {
+		t.Errorf("screen %d after enter", m.screen)
+	}
+	m = press(t, m, esc)
+	if m.screen != scSettings {
+		t.Errorf("esc from review: screen %d", m.screen)
 	}
 }

@@ -107,11 +107,11 @@ iesedoble-ai version
 iesedoble-ai
 ```
 
-Choose **Install or update** and go through the five steps. Move with `↑`/`↓`, toggle with
+Choose **Install or update** and go through the six steps. Move with `↑`/`↓`, toggle with
 `space`, continue with `enter`, go back with `esc`.
 
 1. **Assistants.** The ones found on this machine are marked as detected and preselected.
-2. **Components.** All but the subagent monitor and the Claude sandbox are selected by default:
+2. **Components.** What gets installed; all are selected by default:
 
    | Component | What it adds |
    |---|---|
@@ -121,8 +121,6 @@ Choose **Install or update** and go through the five steps. Move with `↑`/`↓
    | Context warning | In OpenCode, past 200k tokens of context (then every +100k), asks whether to compact now, start a new session with the same agent and model, or keep going |
    | Engram memory | Persistent memory MCP server and plugin |
    | CodeGraph | Code graph MCP server |
-   | Subagent monitor | Keeps the OpenCode subagent statusline that Engram's setup adds. Off by default: the installer removes it from `tui.json` and `cli.json`, after a backup |
-   | Claude sandbox | Turns on Claude Code's sandbox: shell commands write only inside the project and have no network, so they run without permission prompts. `adb` and `./gradlew` run outside it and ask as usual. Off by default; needs macOS, Linux (with `bubblewrap` and `socat`) or WSL2. Run `/sandbox` in Claude Code to check it |
 
 3. **Persona.** How your assistant talks to you, added once to `AGENTS.md` / `CLAUDE.md`. A panel
    explains the option under the cursor, with what it changes and what it costs:
@@ -149,13 +147,15 @@ Choose **Install or update** and go through the five steps. Move with `↑`/`↓
 
    Effort is reasoning, billed as output tokens: `low` uses roughly a third of `medium`, and
    `high` several times more. `auto` keeps your session's level.
+5. **Settings.** How each selected assistant behaves. `space` or `←`/`→` changes the row under
+   the cursor, and a panel explains it.
 
-   With Claude Code selected, a last row sets its **auto-compact window**: how many tokens of
-   context Claude Code allows before it summarizes the conversation on its own. `←`/`→` cycles
-   through Claude Code's default (near the model's limit), 100k, 150k, 200k, 300k and 500k. A
-   smaller window keeps sessions cheaper and focused. It is saved as `autoCompactWindow` in
-   Claude Code's `settings.json`; `/autocompact` still overrides it per model.
-5. **Review.** Check the summary and choose **Install**, or **Dry run** to see what would change
+   | Assistant | Setting | What it does |
+   |---|---|---|
+   | Claude Code | Sandbox | Off by default. Turns on Claude Code's sandbox: shell commands write only inside the project and have no network, so they run without permission prompts. `adb` and `./gradlew` run outside it and ask as usual. Needs macOS, Linux (with `bubblewrap` and `socat`) or WSL2. Run `/sandbox` in Claude Code to check it |
+   | Claude Code | Auto-compact | How many tokens of context Claude Code allows before it summarizes the conversation on its own: Claude Code's default (near the model's limit), 100k, 150k, 200k, 300k or 500k. A smaller window keeps sessions cheaper and focused. Saved as `autoCompactWindow` in `settings.json`; `/autocompact` still overrides it per model |
+   | OpenCode | Subagent monitor | Off by default. Keeps the subagent statusline that Engram's setup adds; off removes it from `tui.json` and `cli.json`, after a backup |
+6. **Review.** Check the summary and choose **Install**, or **Dry run** to see what would change
    without writing anything.
 
 Before writing, the installer shows the tools your selection needs. `✓` is present, `↓` will be
@@ -242,7 +242,7 @@ to compact now or continue in a new session, and asks again every 100k if you ke
 the agents saved to Engram is still there in the new session.
 
 Claude Code has no such dialog, but it compacts on its own: choose its auto-compact window on the
-Models step (200k compacts about where the OpenCode warning asks).
+Settings step (200k compacts about where the OpenCode warning asks).
 
 ## Keep it up to date
 

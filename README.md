@@ -119,15 +119,20 @@ go install github.com/iesedobleac/iesedoble-ai/cmd/iesedoble-ai@latest
 | 🔔 **Plugin** | Context warning: past 200k tokens of context (then every +100k), offers to compact now or continue in a new session | Not needed |
 | 🎭 **Persona** | Optional, added once to `AGENTS.md`: **Architect** (verifies before agreeing, challenges with evidence) or none, plus the **Concise** style that cuts output tokens | Same, in `CLAUDE.md` |
 
-Every component can be switched off in the menu or with `--without`. Engram's setup also adds an
-OpenCode subagent statusline; the installer removes it from `tui.json` and `cli.json` unless you
-select **Subagent monitor** (`--with subagent-monitor`).
+Every component can be switched off in the menu or with `--without`.
 
-**Claude sandbox** (`--with claude-sandbox`, off by default) turns on Claude Code's
-[sandbox](https://code.claude.com/docs/en/sandboxing): shell commands can only write inside the
-project and have no network, so Claude Code runs them without asking. `adb` and `./gradlew` run
-outside it and ask as usual, and the deliverables folder stays writable. It needs macOS, Linux or
-WSL2; on Linux, install `bubblewrap` and `socat`.
+The **Settings** step adjusts how each assistant behaves:
+
+- **Claude Code sandbox** (`--with claude-sandbox`, off by default) turns on Claude Code's
+  [sandbox](https://code.claude.com/docs/en/sandboxing): shell commands can only write inside the
+  project and have no network, so Claude Code runs them without asking. `adb` and `./gradlew` run
+  outside it and ask as usual, and the deliverables folder stays writable. It needs macOS, Linux
+  or WSL2; on Linux, install `bubblewrap` and `socat`.
+- **Claude Code auto-compact** (`--claude-autocompact`) sets how many tokens of context Claude
+  Code allows before it compacts on its own; by default, Claude Code's own window.
+- **OpenCode subagent monitor** (`--with subagent-monitor`, off by default) keeps the subagent
+  statusline that Engram's setup adds; off, the installer removes it from `tui.json` and
+  `cli.json`.
 
 ## 🤖 The agents
 

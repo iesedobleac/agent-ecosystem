@@ -40,6 +40,7 @@ const (
 	scComponents
 	scPersona
 	scModels
+	scSettings
 	scReview
 	scChecking
 	scRequirements
@@ -202,7 +203,10 @@ type Model struct {
 	efforts    []string    // effort per modelKeys entry; empty when the target has none
 	modelKeys  [][2]string // target, profile
 	modelFocus int         // row on the models screen; the last one is Continue
+	settingRow int         // row on the settings screen
 	compact    int         // Claude Code auto-compact window; 0 keeps its default
+	sandbox    bool        // Claude Code sandbox
+	monitor    bool        // OpenCode subagent monitor
 	modelNote  string
 	avail      map[string][]string // listed models per target; nil when they could not be listed
 	availErr   map[string]string   // why a target's models could not be listed
@@ -256,9 +260,8 @@ func New() Model {
 		{key: "plugin", label: "Context warning", desc: "OpenCode: past 200k tokens, offers to compact or start a new session", checked: comps.Plugin},
 		{key: "engram", label: "Engram memory", desc: "persistent memory MCP and plugin", checked: comps.Engram},
 		{key: "codegraph", label: "CodeGraph", desc: "code graph MCP", checked: comps.CodeGraph},
-		{key: "subagent-monitor", label: "Subagent monitor", desc: "OpenCode subagent statusline that Engram adds; off removes it", checked: comps.SubagentMonitor},
-		{key: "claude-sandbox", label: "Claude sandbox", desc: "Claude Code: shell commands sandboxed, fewer permission prompts; adb and Gradle run outside it (not on native Windows)", checked: comps.ClaudeSandbox},
 	}
+	m.sandbox, m.monitor = comps.ClaudeSandbox, comps.SubagentMonitor
 	m.persona.items = []item{
 		{key: "persona-architect", label: "Architect",
 			desc:    "senior architect: verifies before agreeing, challenges with evidence, one question at a time (~300 tokens)",
@@ -344,7 +347,7 @@ func (m Model) options() installer.Options {
 	}
 	opts.Components = installer.Components{SDD: comps["sdd"], Android: comps["android"], Skills: comps["skills"],
 		Plugin: comps["plugin"], Engram: comps["engram"], CodeGraph: comps["codegraph"],
-		SubagentMonitor: comps["subagent-monitor"], ClaudeSandbox: comps["claude-sandbox"], Persona: "none", Concise: comps["concise"]}
+		SubagentMonitor: m.monitor, ClaudeSandbox: m.sandbox, Persona: "none", Concise: comps["concise"]}
 	if comps["persona-architect"] {
 		opts.Components.Persona = "architect"
 	}
@@ -736,16 +739,12 @@ func (m Model) handleKey(msg tea.KeyMsg, key string) (tea.Model, tea.Cmd) {
 				m.modelFocus--
 			}
 		case "down", "j", "tab":
-			if m.modelFocus < m.continueRow() {
+			if m.modelFocus < len(vis) {
 				m.modelFocus++
 			}
 		case "left", "right", "h", "l":
-			forward := key == "right" || key == "l"
-			switch {
-			case m.modelFocus < len(vis) && m.efforts[vis[m.modelFocus]] != "":
-				m.efforts[vis[m.modelFocus]] = cycle(installer.EffortLevels, m.efforts[vis[m.modelFocus]], forward)
-			case m.onCompactRow():
-				m.compact = cycle(installer.AutoCompactWindows, m.compact, forward)
+			if m.modelFocus < len(vis) && m.efforts[vis[m.modelFocus]] != "" {
+				m.efforts[vis[m.modelFocus]] = cycle(installer.EffortLevels, m.efforts[vis[m.modelFocus]], key == "right" || key == "l")
 			}
 		case "enter", " ":
 			if !m.modelsReady() {
@@ -754,17 +753,34 @@ func (m Model) handleKey(msg tea.KeyMsg, key string) (tea.Model, tea.Cmd) {
 			if m.modelFocus < len(vis) {
 				return m.openPicker()
 			}
-			if m.onCompactRow() {
-				m.compact = cycle(installer.AutoCompactWindows, m.compact, true)
-				return m, nil
-			}
 			for _, i := range vis {
 				if m.values[i] == "" {
 					m.modelNote = "Choose a model for every row."
 					return m, nil
 				}
 			}
+			m.screen, m.settingRow = scSettings, 0
+		}
+	case scSettings:
+		rows := m.settingRows()
+		m.settingRow = min(m.settingRow, max(len(rows)-1, 0))
+		switch key {
+		case "esc":
+			m.screen, m.modelFocus, m.modelNote = scModels, 0, ""
+		case "enter":
 			m.screen, m.review = scReview, 0
+		case "up", "k", "shift+tab":
+			if m.settingRow > 0 {
+				m.settingRow--
+			}
+		case "down", "j", "tab":
+			if m.settingRow < len(rows)-1 {
+				m.settingRow++
+			}
+		case "left", "right", "h", "l", " ", "x":
+			if len(rows) > 0 {
+				m = m.changeSetting(rows[m.settingRow], key != "left" && key != "h")
+			}
 		}
 	case scReview:
 		switch key {
@@ -777,7 +793,7 @@ func (m Model) handleKey(msg tea.KeyMsg, key string) (tea.Model, tea.Cmd) {
 				m.review++
 			}
 		case "esc":
-			m.screen, m.modelFocus, m.modelNote = scModels, 0, ""
+			m.screen = scSettings
 		case "enter":
 			switch m.review {
 			case 0:
@@ -830,19 +846,19 @@ func (m Model) View() string {
 		b.WriteString(m.menuView())
 		b.WriteString("\n  " + subtle.Render("↑/↓ move · enter select · q quit"))
 	case scTargets:
-		b.WriteString(title.Render("Assistants") + subtle.Render("  (1/5)") + "\n\n" + m.targets.view())
+		b.WriteString(title.Render("Assistants") + subtle.Render("  (1/6)") + "\n\n" + m.targets.view())
 		b.WriteString(help("space toggle · a all · enter next · esc back"))
 	case scComponents:
-		b.WriteString(title.Render("Components") + subtle.Render("  (2/5)") + "\n\n" + m.components.view())
+		b.WriteString(title.Render("Components") + subtle.Render("  (2/6)") + "\n\n" + m.components.view())
 		b.WriteString(help("space toggle · a all · enter next · esc back"))
 	case scPersona:
-		b.WriteString(title.Render("Persona") + subtle.Render("  (3/5) how your assistant talks to you") + "\n\n" + m.persona.view())
+		b.WriteString(title.Render("Persona") + subtle.Render("  (3/6) how your assistant talks to you") + "\n\n" + m.persona.view())
 		if d := personaDetails[m.persona.items[m.persona.cursor].key]; len(d) > 0 {
 			b.WriteString("\n" + box.Render(strings.Join(d, "\n")) + "\n")
 		}
 		b.WriteString(help("↑/↓ move · space choose · enter next · esc back"))
 	case scModels:
-		b.WriteString(title.Render("Models") + subtle.Render("  (4/5) one model per role; the panel explains what each role needs") + "\n\n")
+		b.WriteString(title.Render("Models") + subtle.Render("  (4/6) one model per role; the panel explains what each role needs") + "\n\n")
 		switch {
 		case !m.modelsReady():
 			b.WriteString(m.spin.View() + " Listing the available models…\n")
@@ -870,17 +886,8 @@ func (m Model) View() string {
 					b.WriteString("  " + label + " " + value + "\n")
 				}
 			}
-			if m.compactRow() {
-				label := fmt.Sprintf("%-12s %-9s", installer.TargetLabels["claude"], "compact")
-				value := compactLabel(m.compact)
-				if m.onCompactRow() {
-					b.WriteString("\n" + selected.Render("› "+label) + " " + value + "\n")
-				} else {
-					b.WriteString("\n  " + label + " " + value + "\n")
-				}
-			}
 			cont := "Continue →"
-			if m.modelFocus == m.continueRow() {
+			if m.modelFocus == len(vis) {
 				cont = selected.Render("› " + cont)
 			} else {
 				cont = "  " + cont
@@ -897,13 +904,13 @@ func (m Model) View() string {
 				}
 				b.WriteString("\n" + box.Render(strings.Join(guide, "\n")) + "\n")
 			}
-			if m.onCompactRow() {
-				b.WriteString("\n" + box.Render(strings.Join(compactGuide, "\n")) + "\n")
-			}
-			b.WriteString(help("↑/↓ move · enter choose model · ←/→ effort or window · esc back"))
+			b.WriteString(help("↑/↓ move · enter choose model · ←/→ effort · esc back"))
 		}
+	case scSettings:
+		b.WriteString(title.Render("Settings") + subtle.Render("  (5/6) how each assistant behaves") + "\n\n" + m.settingsView())
+		b.WriteString(help("↑/↓ move · space toggle · ←/→ change · enter next · esc back"))
 	case scReview:
-		b.WriteString(title.Render("Review") + subtle.Render("  (5/5)") + "\n\n" + box.Render(m.reviewView()) + "\n\n")
+		b.WriteString(title.Render("Review") + subtle.Render("  (6/6)") + "\n\n" + box.Render(m.reviewView()) + "\n\n")
 		buttons := []string{"Install", "Dry run", "Cancel"}
 		for i, btn := range buttons {
 			if i == m.review {
@@ -1028,23 +1035,6 @@ var profileGuide = map[string][]string{
 	},
 }
 
-// compactRow reports whether the models screen shows the Claude Code
-// auto-compact row, below the models.
-func (m Model) compactRow() bool { return containsStr(m.targets.checked(), "claude") }
-
-// continueRow is the index of Continue on the models screen.
-func (m Model) continueRow() int {
-	if m.compactRow() {
-		return len(m.visibleModels()) + 1
-	}
-	return len(m.visibleModels())
-}
-
-// onCompactRow reports whether the auto-compact row has the focus.
-func (m Model) onCompactRow() bool {
-	return m.compactRow() && m.modelFocus == len(m.visibleModels())
-}
-
 // compactLabel names an auto-compact window.
 func compactLabel(tokens int) string {
 	if tokens == 0 {
@@ -1053,16 +1043,106 @@ func compactLabel(tokens int) string {
 	return fmt.Sprintf("at %dk tokens", tokens/1000)
 }
 
-// compactGuide explains the auto-compact row.
-var compactGuide = []string{
-	"Auto-compact: when Claude Code summarizes the conversation on its own",
-	"and carries on in the same session.",
-	"",
-	"A smaller window keeps sessions cheaper and focused; a larger one keeps",
-	"more history. Claude Code's default compacts near the model's limit.",
-	"",
-	"←/→ changes it. Saved as autoCompactWindow in Claude Code's settings.json;",
-	"/autocompact still overrides it per model.",
+// setting is one row of the settings screen.
+type setting struct {
+	target, key, label string
+	guide              []string // explains the row under the cursor
+}
+
+// settings per assistant, shown when the assistant is selected.
+var settings = []setting{
+	{"claude", "sandbox", "Sandbox", []string{
+		"Claude Code's sandbox for shell commands: they write only inside the",
+		"project and have no network, so they run without permission prompts.",
+		"",
+		"adb and ./gradlew run outside it and ask as usual; the deliverables",
+		"folder stays writable. Needs macOS, Linux (bubblewrap and socat) or",
+		"WSL2; on native Windows it is not turned on. Check it with /sandbox.",
+	}},
+	{"claude", "autocompact", "Auto-compact", []string{
+		"When Claude Code summarizes the conversation on its own and carries",
+		"on in the same session.",
+		"",
+		"A smaller window keeps sessions cheaper and focused; a larger one keeps",
+		"more history. Claude Code's default compacts near the model's limit.",
+		"",
+		"Saved as autoCompactWindow in Claude Code's settings.json;",
+		"/autocompact still overrides it per model.",
+	}},
+	{"opencode", "monitor", "Subagent monitor", []string{
+		"The subagent statusline that Engram's setup adds to OpenCode.",
+		"",
+		"Off removes it from tui.json and cli.json, after a backup.",
+	}},
+}
+
+// settingRows are the settings of the selected assistants, in order.
+func (m Model) settingRows() []setting {
+	var rows []setting
+	for _, s := range settings {
+		if containsStr(m.targets.checked(), s.target) {
+			rows = append(rows, s)
+		}
+	}
+	return rows
+}
+
+// settingValue shows a setting's current value.
+func (m Model) settingValue(s setting) string {
+	onOff := func(on bool) string {
+		if on {
+			return "on"
+		}
+		return "off"
+	}
+	switch s.key {
+	case "sandbox":
+		return onOff(m.sandbox)
+	case "monitor":
+		return onOff(m.monitor)
+	default:
+		return compactLabel(m.compact)
+	}
+}
+
+// changeSetting toggles a switch or moves a value forward or back.
+func (m Model) changeSetting(s setting, forward bool) Model {
+	switch s.key {
+	case "sandbox":
+		m.sandbox = !m.sandbox
+	case "monitor":
+		m.monitor = !m.monitor
+	default:
+		m.compact = cycle(installer.AutoCompactWindows, m.compact, forward)
+	}
+	return m
+}
+
+// settingsView lists the settings grouped by assistant, with the guide of
+// the row under the cursor.
+func (m Model) settingsView() string {
+	var b strings.Builder
+	rows := m.settingRows()
+	if len(rows) == 0 {
+		return subtle.Render("Nothing to set for the selected assistants.") + "\n"
+	}
+	m.settingRow = min(m.settingRow, len(rows)-1)
+	for i, s := range rows {
+		if i == 0 || rows[i-1].target != s.target {
+			if i > 0 {
+				b.WriteString("\n")
+			}
+			b.WriteString(subtle.Render(installer.TargetLabels[s.target]) + "\n")
+		}
+		label := fmt.Sprintf("%-17s", s.label)
+		if i == m.settingRow {
+			b.WriteString(selected.Render("› "+label) + " " + m.settingValue(s) + "\n")
+		} else {
+			b.WriteString("  " + label + " " + m.settingValue(s) + "\n")
+		}
+	}
+	b.WriteString("\n" + box.Render(strings.Join(rows[m.settingRow].guide, "\n")) + "\n")
+	return b.String()
 }
 
 // cycle returns the value after (or before) current in values, wrapping around.
@@ -1278,8 +1358,12 @@ func (m Model) reviewView() string {
 		}
 	}
 	b.WriteString("\n" + section.Render("Persona") + "\n  " + persona + subtle.Render(" · ") + style + " replies\n")
-	if m.compactRow() {
-		b.WriteString("\n" + section.Render("Auto-compact") + "\n  " + installer.TargetLabels["claude"] + subtle.Render(" · ") + compactLabel(m.compact) + "\n")
+	if rows := m.settingRows(); len(rows) > 0 {
+		b.WriteString("\n" + section.Render("Settings") + "\n")
+		for _, s := range rows {
+			b.WriteString("  " + subtle.Render(fmt.Sprintf("%-12s ", installer.TargetLabels[s.target])) +
+				s.label + subtle.Render(" · ") + m.settingValue(s) + "\n")
+		}
 	}
 
 	// Models as a table: one row per profile, one column per assistant; the
