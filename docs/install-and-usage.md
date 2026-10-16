@@ -148,6 +148,12 @@ Choose **Install or update** and go through the five steps. Move with `↑`/`↓
 
    Effort is reasoning, billed as output tokens: `low` uses roughly a third of `medium`, and
    `high` several times more. `auto` keeps your session's level.
+
+   With Claude Code selected, a last row sets its **auto-compact window**: how many tokens of
+   context Claude Code allows before it summarizes the conversation on its own. `←`/`→` cycles
+   through Claude Code's default (near the model's limit), 100k, 150k, 200k, 300k and 500k. A
+   smaller window keeps sessions cheaper and focused. It is saved as `autoCompactWindow` in
+   Claude Code's `settings.json`; `/autocompact` still overrides it per model.
 5. **Review.** Check the summary and choose **Install**, or **Dry run** to see what would change
    without writing anything.
 
@@ -233,6 +239,9 @@ fills the context. These habits save more than any setting:
 In OpenCode, the **Context warning** plugin does the reminding: past 200k tokens it asks whether
 to compact now or continue in a new session, and asks again every 100k if you keep going. What
 the agents saved to Engram is still there in the new session.
+
+Claude Code has no such dialog, but it compacts on its own: choose its auto-compact window on the
+Models step (200k compacts about where the OpenCode warning asks).
 
 ## Keep it up to date
 

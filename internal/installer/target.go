@@ -94,6 +94,16 @@ var DefaultEfforts = func() map[string]render.Efforts {
 // EffortLevels are the effort choices; "auto" keeps the session's level.
 var EffortLevels = []string{"auto", "low", "medium", "high", "xhigh", "max"}
 
+// AutoCompactWindows are the Claude Code auto-compact windows offered, in
+// tokens; 0 keeps Claude Code's default. Any value in range works from the CLI.
+var AutoCompactWindows = []int{0, 100_000, 150_000, 200_000, 300_000, 500_000}
+
+// Auto-compact window range accepted by Claude Code.
+const (
+	MinAutoCompact = 100_000
+	MaxAutoCompact = 1_000_000
+)
+
 // ModelFlagPrefix is what goes before a target's model flags (--<prefix>planner).
 func ModelFlagPrefix(id string) string {
 	if t := targetByID(id); t != nil {

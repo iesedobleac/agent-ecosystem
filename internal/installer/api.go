@@ -48,6 +48,9 @@ func Install(opts Options, log Logger) (res *Result, err error) {
 			}
 		}
 	}
+	if w := opts.ClaudeAutoCompact; w != 0 && (w < MinAutoCompact || w > MaxAutoCompact) {
+		return nil, fmt.Errorf("auto-compact window %d out of range (%d to %d tokens)", w, MinAutoCompact, MaxAutoCompact)
+	}
 	if p := opts.Components.SelectedPersona(); !contains(Personas, p) {
 		return nil, fmt.Errorf("unknown persona %q (choose: %s)", p, strings.Join(Personas, ", "))
 	}

@@ -78,17 +78,20 @@ type Options struct {
 	Targets []string                 `json:"targets"`
 	Models  map[string]render.Models `json:"models"`
 	// Efforts per target and profile; missing ones take DefaultEfforts.
-	Efforts         map[string]render.Efforts `json:"efforts,omitempty"`
-	Components      Components                `json:"components"`
-	ConfigDir       string                    `json:"configDir,omitempty"`
-	ClaudeDir       string                    `json:"claudeDir,omitempty"`
-	DeliverablesDir string                    `json:"deliverablesDir,omitempty"`
-	AndroidSDK      string                    `json:"androidSdk,omitempty"`
-	SkipDeps        bool                      `json:"-"`
-	NoShellProfile  bool                      `json:"noShellProfile"`
-	NoGitBash       bool                      `json:"-"`
-	DryRun          bool                      `json:"-"`
-	Home            string                    `json:"-"` // for tests; defaults to the user's home
+	Efforts    map[string]render.Efforts `json:"efforts,omitempty"`
+	Components Components                `json:"components"`
+	// ClaudeAutoCompact is the Claude Code auto-compact window in tokens; 0
+	// keeps Claude Code's own default.
+	ClaudeAutoCompact int    `json:"claudeAutoCompact,omitempty"`
+	ConfigDir         string `json:"configDir,omitempty"`
+	ClaudeDir         string `json:"claudeDir,omitempty"`
+	DeliverablesDir   string `json:"deliverablesDir,omitempty"`
+	AndroidSDK        string `json:"androidSdk,omitempty"`
+	SkipDeps          bool   `json:"-"`
+	NoShellProfile    bool   `json:"noShellProfile"`
+	NoGitBash         bool   `json:"-"`
+	DryRun            bool   `json:"-"`
+	Home              string `json:"-"` // for tests; defaults to the user's home
 }
 
 // Logger receives progress messages.
@@ -113,12 +116,15 @@ type Result struct {
 
 // TargetState records what was installed for one assistant.
 type TargetState struct {
-	Dir       string            `json:"dir"`
-	Files     map[string]string `json:"files"`
-	MCP       []string          `json:"mcp,omitempty"`
-	Deny      []string          `json:"deny,omitempty"`
-	Version   string            `json:"version"`
-	Installed string            `json:"installed"`
+	Dir   string            `json:"dir"`
+	Files map[string]string `json:"files"`
+	MCP   []string          `json:"mcp,omitempty"`
+	Deny  []string          `json:"deny,omitempty"`
+	// AutoCompact is the auto-compact window this tool wrote, so it can be
+	// removed later without touching one set by the user.
+	AutoCompact int    `json:"autoCompact,omitempty"`
+	Version     string `json:"version"`
+	Installed   string `json:"installed"`
 }
 
 // State is ~/.iesedoble-ai/state.json.

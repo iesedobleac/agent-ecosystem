@@ -115,6 +115,8 @@ func install(args []string) {
 			}
 		}
 	}
+	autoCompact := fs.Int("claude-autocompact", 0, fmt.Sprintf("Claude Code auto-compact window in tokens, %d to %d (default: Claude Code's own)",
+		installer.MinAutoCompact, installer.MaxAutoCompact))
 	configDir := fs.String("config-dir", "", "OpenCode config directory")
 	claudeDir := fs.String("claude-dir", "", "Claude Code config directory (default $CLAUDE_CONFIG_DIR or ~/.claude)")
 	deliverables := fs.String("deliverables-dir", "", "folder for agent artifacts (default ~/agent-deliverables)")
@@ -154,7 +156,7 @@ func install(args []string) {
 		}
 	}
 	opts := installer.Options{Targets: targets, Models: models, Efforts: efforts, Components: comps,
-		ConfigDir: *configDir, ClaudeDir: *claudeDir, DeliverablesDir: *deliverables, AndroidSDK: *sdk,
+		ClaudeAutoCompact: *autoCompact, ConfigDir: *configDir, ClaudeDir: *claudeDir, DeliverablesDir: *deliverables, AndroidSDK: *sdk,
 		SkipDeps: *skipDeps, NoShellProfile: *noProfile, NoGitBash: *noGitBash, DryRun: *dryRun}
 	runInstall(opts)
 }

@@ -721,3 +721,57 @@ func TestClaudeEfforts(t *testing.T) {
 		t.Errorf("invalid effort: %v", err)
 	}
 }
+
+func TestClaudeAutoCompact(t *testing.T) {
+	opts := testOptions(t.TempDir())
+	opts.Targets = []string{"claude"}
+	file := filepath.Join(opts.ClaudeDir, "settings.json")
+	window := func() any {
+		settings, _ := readJSON(file)
+		return settings["autoCompactWindow"]
+	}
+	install := func() {
+		t.Helper()
+		if _, err := Install(opts, testLogger{t}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	install()
+	if w := window(); w != nil {
+		t.Errorf("default run wrote a window: %v", w)
+	}
+	opts.ClaudeAutoCompact = 200_000
+	install()
+	if w := window(); w != 200_000.0 {
+		t.Errorf("window: %v", w)
+	}
+	// Back to the default, the window this tool wrote goes away.
+	opts.ClaudeAutoCompact = 0
+	install()
+	if w := window(); w != nil {
+		t.Errorf("window not removed: %v", w)
+	}
+
+	// One the user set stays, on a default run and on uninstall.
+	if err := os.WriteFile(file, []byte(`{"autoCompactWindow": 400000}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	install()
+	if w := window(); w != 400_000.0 {
+		t.Errorf("user window changed: %v", w)
+	}
+	opts.ClaudeAutoCompact = 300_000
+	install()
+	if err := Uninstall(Options{Targets: opts.Targets, Home: opts.Home, ClaudeDir: opts.ClaudeDir}, testLogger{t}); err != nil {
+		t.Fatal(err)
+	}
+	if w := window(); w != nil {
+		t.Errorf("window left after uninstall: %v", w)
+	}
+
+	opts.ClaudeAutoCompact = 50_000
+	if _, err := Install(opts, testLogger{t}); err == nil || !strings.Contains(err.Error(), "out of range") {
+		t.Errorf("window out of range: %v", err)
+	}
+}

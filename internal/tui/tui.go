@@ -201,7 +201,8 @@ type Model struct {
 	values     []string    // chosen model per modelKeys entry; empty until chosen
 	efforts    []string    // effort per modelKeys entry; empty when the target has none
 	modelKeys  [][2]string // target, profile
-	modelFocus int         // row on the models screen; one past the last is Continue
+	modelFocus int         // row on the models screen; the last one is Continue
+	compact    int         // Claude Code auto-compact window; 0 keeps its default
 	modelNote  string
 	avail      map[string][]string // listed models per target; nil when they could not be listed
 	availErr   map[string]string   // why a target's models could not be listed
@@ -239,7 +240,7 @@ func New() Model {
 	selectedTargets := detected
 	comps := installer.DefaultComponents()
 	if prev != nil {
-		selectedTargets, comps = prev.Targets, prev.Components
+		selectedTargets, comps, m.compact = prev.Targets, prev.Components, prev.ClaudeAutoCompact
 	}
 	for _, t := range installer.AllTargets {
 		desc := ""
@@ -335,7 +336,7 @@ func checkLatest() tea.Msg {
 
 func (m Model) options() installer.Options {
 	opts := installer.Options{Targets: m.targets.checked(), DryRun: m.dryRun,
-		Models: map[string]render.Models{}}
+		Models: map[string]render.Models{}, ClaudeAutoCompact: m.compact}
 	comps := map[string]bool{}
 	for _, k := range append(m.components.checked(), m.persona.checked()...) {
 		comps[k] = true
@@ -734,12 +735,16 @@ func (m Model) handleKey(msg tea.KeyMsg, key string) (tea.Model, tea.Cmd) {
 				m.modelFocus--
 			}
 		case "down", "j", "tab":
-			if m.modelFocus < len(vis) {
+			if m.modelFocus < m.continueRow() {
 				m.modelFocus++
 			}
 		case "left", "right", "h", "l":
-			if m.modelFocus < len(vis) && m.efforts[vis[m.modelFocus]] != "" {
-				m.efforts[vis[m.modelFocus]] = cycle(installer.EffortLevels, m.efforts[vis[m.modelFocus]], key == "right" || key == "l")
+			forward := key == "right" || key == "l"
+			switch {
+			case m.modelFocus < len(vis) && m.efforts[vis[m.modelFocus]] != "":
+				m.efforts[vis[m.modelFocus]] = cycle(installer.EffortLevels, m.efforts[vis[m.modelFocus]], forward)
+			case m.onCompactRow():
+				m.compact = cycle(installer.AutoCompactWindows, m.compact, forward)
 			}
 		case "enter", " ":
 			if !m.modelsReady() {
@@ -747,6 +752,10 @@ func (m Model) handleKey(msg tea.KeyMsg, key string) (tea.Model, tea.Cmd) {
 			}
 			if m.modelFocus < len(vis) {
 				return m.openPicker()
+			}
+			if m.onCompactRow() {
+				m.compact = cycle(installer.AutoCompactWindows, m.compact, true)
+				return m, nil
 			}
 			for _, i := range vis {
 				if m.values[i] == "" {
@@ -860,8 +869,17 @@ func (m Model) View() string {
 					b.WriteString("  " + label + " " + value + "\n")
 				}
 			}
+			if m.compactRow() {
+				label := fmt.Sprintf("%-12s %-9s", installer.TargetLabels["claude"], "compact")
+				value := compactLabel(m.compact)
+				if m.onCompactRow() {
+					b.WriteString("\n" + selected.Render("› "+label) + " " + value + "\n")
+				} else {
+					b.WriteString("\n  " + label + " " + value + "\n")
+				}
+			}
 			cont := "Continue →"
-			if m.modelFocus == len(vis) {
+			if m.modelFocus == m.continueRow() {
 				cont = selected.Render("› " + cont)
 			} else {
 				cont = "  " + cont
@@ -878,7 +896,10 @@ func (m Model) View() string {
 				}
 				b.WriteString("\n" + box.Render(strings.Join(guide, "\n")) + "\n")
 			}
-			b.WriteString(help("↑/↓ move · enter choose model · ←/→ effort · esc back"))
+			if m.onCompactRow() {
+				b.WriteString("\n" + box.Render(strings.Join(compactGuide, "\n")) + "\n")
+			}
+			b.WriteString(help("↑/↓ move · enter choose model · ←/→ effort or window · esc back"))
 		}
 	case scReview:
 		b.WriteString(title.Render("Review") + subtle.Render("  (5/5)") + "\n\n" + box.Render(m.reviewView()) + "\n\n")
@@ -1006,8 +1027,45 @@ var profileGuide = map[string][]string{
 	},
 }
 
+// compactRow reports whether the models screen shows the Claude Code
+// auto-compact row, below the models.
+func (m Model) compactRow() bool { return containsStr(m.targets.checked(), "claude") }
+
+// continueRow is the index of Continue on the models screen.
+func (m Model) continueRow() int {
+	if m.compactRow() {
+		return len(m.visibleModels()) + 1
+	}
+	return len(m.visibleModels())
+}
+
+// onCompactRow reports whether the auto-compact row has the focus.
+func (m Model) onCompactRow() bool {
+	return m.compactRow() && m.modelFocus == len(m.visibleModels())
+}
+
+// compactLabel names an auto-compact window.
+func compactLabel(tokens int) string {
+	if tokens == 0 {
+		return "Claude Code's default"
+	}
+	return fmt.Sprintf("at %dk tokens", tokens/1000)
+}
+
+// compactGuide explains the auto-compact row.
+var compactGuide = []string{
+	"Auto-compact: when Claude Code summarizes the conversation on its own",
+	"and carries on in the same session.",
+	"",
+	"A smaller window keeps sessions cheaper and focused; a larger one keeps",
+	"more history. Claude Code's default compacts near the model's limit.",
+	"",
+	"←/→ changes it. Saved as autoCompactWindow in Claude Code's settings.json;",
+	"/autocompact still overrides it per model.",
+}
+
 // cycle returns the value after (or before) current in values, wrapping around.
-func cycle(values []string, current string, forward bool) string {
+func cycle[T comparable](values []T, current T, forward bool) T {
 	i := slices.Index(values, current)
 	if forward {
 		return values[(i+1)%len(values)]
@@ -1219,6 +1277,9 @@ func (m Model) reviewView() string {
 		}
 	}
 	b.WriteString("\n" + section.Render("Persona") + "\n  " + persona + subtle.Render(" · ") + style + " replies\n")
+	if m.compactRow() {
+		b.WriteString("\n" + section.Render("Auto-compact") + "\n  " + installer.TargetLabels["claude"] + subtle.Render(" · ") + compactLabel(m.compact) + "\n")
+	}
 
 	// Models as a table: one row per profile, one column per assistant; the
 	// effort follows the model where the assistant has one.

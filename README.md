@@ -210,6 +210,7 @@ iesedoble-ai uninstall   # remove everything it installed
 | `--planner`, `--analyst`, `--executor`, `--scout`, `--reviewer` | OpenCode model per role |
 | `--claude-planner`, `--claude-analyst`, … `--claude-reviewer` | Claude Code model per role |
 | `--claude-planner-effort`, … `--claude-reviewer-effort` | Claude Code effort per role: `auto`, `low`, `medium`, `high`, `xhigh`, `max` |
+| `--claude-autocompact` | Claude Code auto-compact window in tokens, `100000` to `1000000` (default: Claude Code's own) |
 | `--config-dir`, `--claude-dir` | Assistant config directories |
 | `--deliverables-dir`, `--android-sdk` | Paths the agents use |
 | `--skip-deps`, `--no-shell-profile`, `--dry-run` | Behaviour |

@@ -17,7 +17,7 @@ func (claudeCode) id() string         { return "claude" }
 func (claudeCode) label() string      { return "Claude Code" }
 func (claudeCode) binary() string     { return "claude" }
 func (claudeCode) flagPrefix() string { return "claude-" }
-func (claudeCode) steps() int         { return 5 }
+func (claudeCode) steps() int         { return 6 }
 
 func (claudeCode) defaultModels() render.Models {
 	return render.Models{"planner": "opus", "analyst": "sonnet", "executor": "sonnet", "scout": "haiku", "reviewer": "opus"}
@@ -235,6 +235,11 @@ func (c claudeCode) install(r *run, src *sources, st *TargetState) error {
 	}
 	r.log.OK("Claude Code: session deny rules " + listOr(addedDeny, "already present"))
 
+	r.step("Claude Code: auto-compact window")
+	if err := c.setAutoCompact(r, settingsFile, st); err != nil {
+		return err
+	}
+
 	r.step("Claude Code: MCP servers")
 	wanted, _, err := r.servers(values)
 	if err != nil {
@@ -312,11 +317,57 @@ func (c claudeCode) uninstall(r *run, st *TargetState) error {
 			}
 		}
 	}
+	if st.AutoCompact > 0 {
+		if settings, err := readJSON(settingsFile); err == nil {
+			if current, _ := settings["autoCompactWindow"].(float64); int(current) == st.AutoCompact {
+				delete(settings, "autoCompactWindow")
+				r.backupFile(settingsFile)
+				if err := r.writeJSON(settingsFile, settings); err != nil {
+					return err
+				}
+			}
+		}
+	}
 	for _, name := range st.MCP {
 		if err := c.mcpRemove(r, dir, name); err != nil {
 			return err
 		}
 	}
 	r.log.OK("Claude Code: removed from " + dir)
+	return nil
+}
+
+// setAutoCompact writes the chosen auto-compact window. Back on Claude Code's
+// default, it removes the window a previous run wrote, but never one the user
+// changed since.
+func (claudeCode) setAutoCompact(r *run, file string, st *TargetState) error {
+	settings, err := readJSON(file)
+	if err != nil {
+		return err
+	}
+	want := r.opts.ClaudeAutoCompact
+	current, _ := settings["autoCompactWindow"].(float64)
+	ours := st.AutoCompact > 0 && int(current) == st.AutoCompact
+	st.AutoCompact = want
+	var msg string
+	switch {
+	case want > 0 && int(current) == want:
+		r.log.OK(fmt.Sprintf("Claude Code: auto-compact window already %dk", want/1000))
+		return nil
+	case want > 0:
+		settings["autoCompactWindow"] = want
+		msg = fmt.Sprintf("Claude Code: auto-compact window %dk", want/1000)
+	case ours:
+		delete(settings, "autoCompactWindow")
+		msg = "Claude Code: auto-compact window back to Claude Code's default"
+	default:
+		r.log.OK("Claude Code: auto-compact window left to Claude Code")
+		return nil
+	}
+	r.backupFile(file)
+	if err := r.writeJSON(file, settings); err != nil {
+		return err
+	}
+	r.log.OK(msg)
 	return nil
 }

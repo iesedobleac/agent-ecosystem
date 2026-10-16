@@ -56,7 +56,7 @@ func TestModelsScreen(t *testing.T) {
 	}
 
 	// Continue is refused while a row has no model.
-	m.modelFocus = len(m.visibleModels())
+	m.modelFocus = m.continueRow()
 	m = press(t, m, enter)
 	if m.screen != scModels || m.modelNote == "" {
 		t.Fatalf("continued without models: screen %d", m.screen)
@@ -94,8 +94,17 @@ func TestModelsScreen(t *testing.T) {
 		t.Errorf("effort after →: %q", e)
 	}
 
-	m.modelFocus = len(m.visibleModels())
-	m = press(t, m, enter)
+	// The auto-compact row follows the models; ←/→ cycles the window.
+	m = press(t, m, down, down, down, down, down)
+	if !m.onCompactRow() || !strings.Contains(m.View(), "Claude Code's default") {
+		t.Fatalf("auto-compact row not focused:\n%s", m.View())
+	}
+	m = press(t, m, tea.KeyMsg{Type: tea.KeyRight}, tea.KeyMsg{Type: tea.KeyRight})
+	if w := m.options().ClaudeAutoCompact; w != 150_000 {
+		t.Errorf("auto-compact after →→: %d", w)
+	}
+
+	m = press(t, m, down, enter)
 	if m.screen != scReview {
 		t.Errorf("screen %d after Continue", m.screen)
 	}
