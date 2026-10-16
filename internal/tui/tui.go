@@ -951,7 +951,22 @@ func (m Model) View() string {
 		}
 		b.WriteString(help("enter menu · q quit"))
 	}
-	return b.String() + "\n"
+	return indentLines(b.String(), margin) + "\n"
+}
+
+// margin is the blank space kept on the left of every screen.
+const margin = 2
+
+// indentLines puts n spaces before every non-empty line.
+func indentLines(text string, n int) string {
+	pad := strings.Repeat(" ", n)
+	lines := strings.Split(text, "\n")
+	for i, l := range lines {
+		if l != "" {
+			lines[i] = pad + l
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 // profileGuide explains what each model role does and what suits it; the

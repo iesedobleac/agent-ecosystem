@@ -64,7 +64,7 @@ func header(width int) string {
 	for _, line := range logo {
 		logoWidth = max(logoWidth, utf8.RuneCountInString(line))
 	}
-	if width != 0 && width < logoWidth+4 {
+	if width != 0 && width < logoWidth+4+margin {
 		return title.Render("iesedoble-ai") + " " + subtle.Render(version) + "\n" + subtle.Render(tagline)
 	}
 
